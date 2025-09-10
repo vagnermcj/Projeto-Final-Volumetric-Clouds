@@ -1,3 +1,8 @@
-﻿  glad.c
+﻿  EBO.cpp
   main.cpp
+  shaderClass.cpp
+  VAO.cpp
+  VBO.cpp
+  Generating Code...
+  glad.c
   VolumetricClouds.vcxproj -> D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\x64\Debug\VolumetricClouds.exe

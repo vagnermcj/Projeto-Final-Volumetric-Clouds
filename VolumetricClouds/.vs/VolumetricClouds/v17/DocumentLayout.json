@@ -5,6 +5,46 @@
     {
       "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VAO.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\VAO.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VBO.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\VBO.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\EBO.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\EBO.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VAO.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\VAO.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\shaderClass.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\shaderClass.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\shaderClass.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\shaderClass.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\default.frag||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\default.frag||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\default.vert||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\default.vert||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\EBO.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\EBO.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VBO.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{9042B5BE-A70A-4DEC-B1B6-9FD0224C407A}|VolumetricClouds\\VolumetricClouds.vcxproj|solutionrelative:VolumetricClouds\\VBO.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     }
   ],
   "DocumentGroupContainers": [
@@ -14,8 +54,138 @@
       "DocumentGroups": [
         {
           "DockedWidth": 247,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 10,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "EBO.cpp",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\EBO.cpp",
+              "RelativeDocumentMoniker": "VolumetricClouds\\EBO.cpp",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\EBO.cpp",
+              "RelativeToolTip": "VolumetricClouds\\EBO.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAABOAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2025-09-10T19:52:51.382Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "VAO.cpp",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VAO.cpp",
+              "RelativeDocumentMoniker": "VolumetricClouds\\VAO.cpp",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VAO.cpp",
+              "RelativeToolTip": "VolumetricClouds\\VAO.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAAAmAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2025-09-10T19:52:43.001Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "VBO.cpp",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VBO.cpp",
+              "RelativeDocumentMoniker": "VolumetricClouds\\VBO.cpp",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VBO.cpp",
+              "RelativeToolTip": "VolumetricClouds\\VBO.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAIAAABNAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2025-09-10T19:52:36.638Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "EBO.h",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\EBO.h",
+              "RelativeDocumentMoniker": "VolumetricClouds\\EBO.h",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\EBO.h",
+              "RelativeToolTip": "VolumetricClouds\\EBO.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAHAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2025-09-10T19:50:44.617Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "VBO.h",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VBO.h",
+              "RelativeDocumentMoniker": "VolumetricClouds\\VBO.h",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VBO.h",
+              "RelativeToolTip": "VolumetricClouds\\VBO.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAHAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2025-09-10T19:50:21.968Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "VAO.h",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VAO.h",
+              "RelativeDocumentMoniker": "VolumetricClouds\\VAO.h",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\VAO.h",
+              "RelativeToolTip": "VolumetricClouds\\VAO.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2025-09-10T19:50:12.986Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "shaderClass.cpp",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\shaderClass.cpp",
+              "RelativeDocumentMoniker": "VolumetricClouds\\shaderClass.cpp",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\shaderClass.cpp",
+              "RelativeToolTip": "VolumetricClouds\\shaderClass.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAEQAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2025-09-10T19:46:00.481Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "shaderClass.h",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\shaderClass.h",
+              "RelativeDocumentMoniker": "VolumetricClouds\\shaderClass.h",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\shaderClass.h",
+              "RelativeToolTip": "VolumetricClouds\\shaderClass.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAA0AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2025-09-10T19:42:40.05Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "default.frag",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\default.frag",
+              "RelativeDocumentMoniker": "VolumetricClouds\\default.frag",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\default.frag",
+              "RelativeToolTip": "VolumetricClouds\\default.frag",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAArAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-09-10T19:41:38.666Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "default.vert",
+              "DocumentMoniker": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\default.vert",
+              "RelativeDocumentMoniker": "VolumetricClouds\\default.vert",
+              "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\default.vert",
+              "RelativeToolTip": "VolumetricClouds\\default.vert",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAxAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-09-10T19:40:36.304Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Document",
               "DocumentIndex": 0,
@@ -24,7 +194,7 @@
               "RelativeDocumentMoniker": "VolumetricClouds\\main.cpp",
               "ToolTip": "D:\\Projeto-Final-Volumetric-Clouds\\VolumetricClouds\\VolumetricClouds\\main.cpp",
               "RelativeToolTip": "VolumetricClouds\\main.cpp",
-              "ViewState": "AgIAABEAAAAAAAAAAAAAABQAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAB0AAAAAAAAAAAAAACkAAAArAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2025-09-10T00:19:15.501Z",
               "EditorCaption": ""
