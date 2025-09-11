@@ -1,31 +1,53 @@
 #include<iostream>
 #include<glad/glad.h>
 #include<GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 
 #include"shaderClass.h"
 #include"VAO.h"
 #include"VBO.h"
 #include"EBO.h"
 
-
+const unsigned int width = 800;
+const unsigned int height = 800;
 
 // Vertices coordinates
 GLfloat vertices[] =
-{ //               COORDINATES                  /     COLORS           //
-	-0.5f, -0.5f * float(sqrt(3)) * 1 / 3, 0.0f,     0.8f, 0.3f,  0.02f, // Lower left corner
-	 0.5f, -0.5f * float(sqrt(3)) * 1 / 3, 0.0f,     0.8f, 0.3f,  0.02f, // Lower right corner
-	 0.0f,  0.5f * float(sqrt(3)) * 2 / 3, 0.0f,     1.0f, 0.6f,  0.32f, // Upper corner
-	-0.25f, 0.5f * float(sqrt(3)) * 1 / 6, 0.0f,     0.9f, 0.45f, 0.17f, // Inner left
-	 0.25f, 0.5f * float(sqrt(3)) * 1 / 6, 0.0f,     0.9f, 0.45f, 0.17f, // Inner right
-	 0.0f, -0.5f * float(sqrt(3)) * 1 / 3, 0.0f,     0.8f, 0.3f,  0.02f  // Inner down
+{ //     COORDINATES      /       COLORS       //
+	-0.5f, -0.5f,  0.5f,      1.0f, 0.0f, 0.0f,  // 0 - Red
+	 0.5f, -0.5f,  0.5f,      0.0f, 1.0f, 0.0f,  // 1 - Green
+	 0.5f,  0.5f,  0.5f,      0.0f, 0.0f, 1.0f,  // 2 - Blue
+	-0.5f,  0.5f,  0.5f,      1.0f, 1.0f, 0.0f,  // 3 - Yellow
+	-0.5f, -0.5f, -0.5f,      1.0f, 0.0f, 1.0f,  // 4 - Magenta
+	 0.5f, -0.5f, -0.5f,      0.0f, 1.0f, 1.0f,  // 5 - Cyan
+	 0.5f,  0.5f, -0.5f,      1.0f, 1.0f, 1.0f,  // 6 - White
+	-0.5f,  0.5f, -0.5f,      0.0f, 0.0f, 0.0f   // 7 - Black
 };
 
 // Indices for vertices order
 GLuint indices[] =
 {
-	0, 3, 5, // Lower left triangle
-	3, 2, 4, // Lower right triangle
-	5, 4, 1 // Upper triangle
+	// Front face
+	0, 1, 2,
+	0, 2, 3,
+	// Back face
+	4, 5, 6,
+	4, 6, 7,
+	// Right face
+	1, 5, 6,
+	1, 6, 2,
+	// Left face
+	0, 4, 7,
+	0, 7, 3,
+	// Top face
+	3, 2, 6,
+	3, 6, 7,
+	// Bottom face
+	0, 1, 5,
+	0, 5, 4
 };
 
 
@@ -44,7 +66,7 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// Create a GLFWwindow object of 800 by 800 pixels, naming it "YoutubeOpenGL"
-	GLFWwindow* window = glfwCreateWindow(800, 800, "Window", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(width, height, "Window", NULL, NULL);
 	// Error check if the window fails to create
 	if (window == NULL)
 	{
@@ -58,8 +80,8 @@ int main()
 	//Load GLAD so it configures OpenGL
 	gladLoadGL();
 	// Specify the viewport of OpenGL in the Window
-	// In this case the viewport goes from x = 0, y = 0, to x = 800, y = 800
-	glViewport(0, 0, 800, 800);
+	// In this case the viewport goes from x = 0, y = 0, to x = width, y = height
+	glViewport(0, 0, width, height);
 
 
 
@@ -87,7 +109,13 @@ int main()
 	EBO1.Unbind();
 
 
+	float rotation = 0.0f;
+	double prevTime = glfwGetTime();
+
+
 	GLuint uniID = glGetUniformLocation(shaderProgram.ID, "scale");
+
+	glEnable(GL_DEPTH_TEST);
 
 	// Main while loop
 	while (!glfwWindowShouldClose(window))
@@ -95,14 +123,45 @@ int main()
 		// Specify the color of the background
 		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		// Clean the back buffer and assign the new color to it
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		// Tell OpenGL which Shader Program we want to use
 		shaderProgram.Activate();
+
+
+		// Simple timer
+		double crntTime = glfwGetTime();
+		if (crntTime - prevTime >= 1.0f / 60.0f)
+		{
+			rotation += 0.5f;
+			prevTime = crntTime;
+		}
+
+
+		glm::mat4 model = glm::mat4(1.0f);
+		glm::mat4 view = glm::mat4(1.0f);
+		glm::mat4 proj = glm::mat4(1.0f);
+
+
+
+		model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		view = glm::translate(view, glm::vec3(0.0f, 0.5f, -5.0f));
+		
+		proj = glm::perspective(glm::radians(45.0f), (float)(width / height), 0.1f, 100.0f);
+
+		int modelLoc = glGetUniformLocation(shaderProgram.ID, "model");
+		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+		int viewLoc = glGetUniformLocation(shaderProgram.ID, "view");
+		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+		int projLoc = glGetUniformLocation(shaderProgram.ID, "proj");
+		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(proj));
+
 		glUniform1f(uniID, 0.5f);
 		// Bind the VAO so OpenGL knows to use it
 		VAO1.Bind();
 		// Draw primitives, number of indices, datatype of indices, index of indices
-		glDrawElements(GL_TRIANGLES, 9, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(int), GL_UNSIGNED_INT, 0);
 		// Swap the back buffer with the front buffer
 		glfwSwapBuffers(window);
 		// Take care of all GLFW events
