@@ -10,6 +10,10 @@
 #include"VAO.h"
 #include"VBO.h"
 #include"EBO.h"
+#include"Floor.h"
+
+
+static FloorPtr sceneFloor;
 
 const unsigned int width = 800;
 const unsigned int height = 800;
@@ -74,20 +78,16 @@ int main()
 		glfwTerminate();
 		return -1;
 	}
-	// Introduce the window into the current context
-	glfwMakeContextCurrent(window);
 
-	//Load GLAD so it configures OpenGL
+
+	glfwMakeContextCurrent(window);
 	gladLoadGL();
-	// Specify the viewport of OpenGL in the Window
-	// In this case the viewport goes from x = 0, y = 0, to x = width, y = height
 	glViewport(0, 0, width, height);
 
 
 
 	// Generates Shader object using shaders defualt.vert and default.frag
 	Shader shaderProgram("default.vert", "default.frag");
-
 
 
 	// Generates Vertex Array Object and binds it
@@ -108,14 +108,12 @@ int main()
 	VBO1.Unbind();
 	EBO1.Unbind();
 
+	sceneFloor = Floor::Make(100.0f, -1.0f);
 
 	float rotation = 0.0f;
 	double prevTime = glfwGetTime();
 
-
-	GLuint uniID = glGetUniformLocation(shaderProgram.ID, "scale");
-
-	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST); //Enable the depth calculation in the gl, so the triangles don't get buggy 
 
 	// Main while loop
 	while (!glfwWindowShouldClose(window))
@@ -143,10 +141,11 @@ int main()
 
 
 
-		model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
-		view = glm::translate(view, glm::vec3(0.0f, 0.5f, -5.0f));
+		model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f)); //Rotate the model based on timer
+
+		view = glm::translate(view, glm::vec3(0.0f, 0.5f, -5.0f)); //Move the world
 		
-		proj = glm::perspective(glm::radians(45.0f), (float)(width / height), 0.1f, 100.0f);
+		proj = glm::perspective(glm::radians(45.0f), (float)(width / height), 0.1f, 100.0f); //Apply perspective based on a FOV, 
 
 		int modelLoc = glGetUniformLocation(shaderProgram.ID, "model");
 		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
@@ -157,11 +156,13 @@ int main()
 		int projLoc = glGetUniformLocation(shaderProgram.ID, "proj");
 		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(proj));
 
-		glUniform1f(uniID, 0.5f);
+
 		// Bind the VAO so OpenGL knows to use it
 		VAO1.Bind();
 		// Draw primitives, number of indices, datatype of indices, index of indices
 		glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(int), GL_UNSIGNED_INT, 0);
+
+		sceneFloor->Draw();
 		// Swap the back buffer with the front buffer
 		glfwSwapBuffers(window);
 		// Take care of all GLFW events
