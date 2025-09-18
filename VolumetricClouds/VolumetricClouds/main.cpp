@@ -1,6 +1,6 @@
-#include<iostream>
-#include<glad/glad.h>
-#include<GLFW/glfw3.h>
+#include <iostream>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -11,6 +11,7 @@
 #include"VBO.h"
 #include"EBO.h"
 #include"Floor.h"
+#include"Camera.h"
 
 
 static FloorPtr sceneFloor;
@@ -109,57 +110,24 @@ int main()
 	EBO1.Unbind();
 
 	sceneFloor = Floor::Make(100.0f, -1.0f);
-
-	float rotation = 0.0f;
-	double prevTime = glfwGetTime();
+	Camera camera(width, height, glm::vec3(0.0f, 0.0f, 2.0f));
 
 	glEnable(GL_DEPTH_TEST); //Enable the depth calculation in the gl, so the triangles don't get buggy 
 
 	// Main while loop
 	while (!glfwWindowShouldClose(window))
 	{
-		// Specify the color of the background
 		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		// Clean the back buffer and assign the new color to it
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		// Tell OpenGL which Shader Program we want to use
 		shaderProgram.Activate();
 
-
-		// Simple timer
-		double crntTime = glfwGetTime();
-		if (crntTime - prevTime >= 1.0f / 60.0f)
-		{
-			rotation += 0.5f;
-			prevTime = crntTime;
-		}
+		camera.Inputs(window);
+		camera.Matrix(45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
 
 
-		glm::mat4 model = glm::mat4(1.0f);
-		glm::mat4 view = glm::mat4(1.0f);
-		glm::mat4 proj = glm::mat4(1.0f);
-
-
-
-		model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f)); //Rotate the model based on timer
-
-		view = glm::translate(view, glm::vec3(0.0f, 0.5f, -5.0f)); //Move the world
-		
-		proj = glm::perspective(glm::radians(45.0f), (float)(width / height), 0.1f, 100.0f); //Apply perspective based on a FOV, 
-
-		int modelLoc = glGetUniformLocation(shaderProgram.ID, "model");
-		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-		int viewLoc = glGetUniformLocation(shaderProgram.ID, "view");
-		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-		int projLoc = glGetUniformLocation(shaderProgram.ID, "proj");
-		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(proj));
-
-
-		// Bind the VAO so OpenGL knows to use it
 		VAO1.Bind();
-		// Draw primitives, number of indices, datatype of indices, index of indices
+		// Drawing Cube
 		glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(int), GL_UNSIGNED_INT, 0);
 
 		sceneFloor->Draw();
