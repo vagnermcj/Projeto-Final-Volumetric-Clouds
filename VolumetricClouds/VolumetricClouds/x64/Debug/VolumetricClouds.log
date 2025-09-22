@@ -1,5 +1,5 @@
 ﻿  Camera.cpp
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\Camera.cpp(24,21): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\Camera.cpp(29,21): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
   main.cpp
   Generating Code...
   VolumetricClouds.vcxproj -> D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\x64\Debug\VolumetricClouds.exe

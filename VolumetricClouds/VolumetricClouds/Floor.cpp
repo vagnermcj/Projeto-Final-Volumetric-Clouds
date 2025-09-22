@@ -1,4 +1,4 @@
-#include "Floor.h"
+﻿#include "Floor.h"
 #include "VAO.h"
 #include "VBO.h"
 #include "EBO.h"
@@ -11,42 +11,38 @@ FloorPtr Floor::Make(float area, float height)
 
 Floor::Floor(float area, float height)
 {
-	float half = area / 2.0f;
+    float half = area / 2.0f;
 
-	GLfloat vertices[] =
-	{
-		-half, height, -half,
-		 half, height, -half,
-		 half, height,  half,
-		-half, height,  half
-	};
+    // Vértices do chão com posição, cor e normal
+    GLfloat vertices[] =
+    {
+        //    POSIÇÃO              COR                NORMAL
+        -half, height, -half,   0.47f, 0.47f, 0.47f,   0.0f, 1.0f, 0.0f,
+         half, height, -half,   0.47f, 0.47f, 0.47f,   0.0f, 1.0f, 0.0f,
+         half, height,  half,   0.47f, 0.47f, 0.47f,   0.0f, 1.0f, 0.0f,
+        -half, height,  half,   0.47f, 0.47f, 0.47f,   0.0f, 1.0f, 0.0f
+    };
 
-	GLfloat color[] =
-	{
-		0.47f, 0.47f, 0.47f,
-		0.47f, 0.47f, 0.47f,
-		0.47f, 0.47f, 0.47f,
-		0.47f, 0.47f, 0.47f
-	};
+    GLuint indices[] =
+    {
+        0, 1, 2,
+        2, 3, 0
+    };
 
-	
+    FloorVAO.Bind();
 
-	FloorVAO.Bind();
+    VBO FloorVBO(vertices, sizeof(vertices));
+    EBO FloorEBO(indices, sizeof(indices));
 
-	VBO VertexVBO(vertices, sizeof(vertices));
-	VBO ColorVBO(color, sizeof(color));
+    FloorVAO.LinkAttrib(FloorVBO, 0, 3, GL_FLOAT, 9 * sizeof(float), (void*)0); //Coord
+    FloorVAO.LinkAttrib(FloorVBO, 1, 3, GL_FLOAT, 9 * sizeof(float), (void*)(3 * sizeof(float))); //Color
+    FloorVAO.LinkAttrib(FloorVBO, 2, 3, GL_FLOAT, 9 * sizeof(float), (void*)(6 * sizeof(float))); //Normals
 
-	EBO EBO1(indexes, sizeof(indexes));
-
-	// Links VBO to VAO
-	FloorVAO.LinkAttrib(VertexVBO, 0, 3, GL_FLOAT, 3 * sizeof(float), (void*)0); //Terminar, decidindo se usa um VBO soh ou dois
-	FloorVAO.LinkAttrib(ColorVBO, 1, 3, GL_FLOAT, 3 * sizeof(float), (void*)0);
-
-	FloorVAO.Unbind();
-	VertexVBO.Delete();
-	ColorVBO.Delete();
-	EBO1.Delete();
+    FloorVAO.Unbind();
+    FloorVBO.Delete();
+    FloorEBO.Delete();
 }
+
 
 void Floor::Draw()
 {

@@ -20,41 +20,71 @@ const unsigned int width = 800;
 const unsigned int height = 800;
 
 // Vertices coordinates
-GLfloat vertices[] =
-{ //     COORDINATES      /       COLORS       //
-	-0.5f, -0.5f,  0.5f,      1.0f, 0.0f, 0.0f,  // 0 - Red
-	 0.5f, -0.5f,  0.5f,      0.0f, 1.0f, 0.0f,  // 1 - Green
-	 0.5f,  0.5f,  0.5f,      0.0f, 0.0f, 1.0f,  // 2 - Blue
-	-0.5f,  0.5f,  0.5f,      1.0f, 1.0f, 0.0f,  // 3 - Yellow
-	-0.5f, -0.5f, -0.5f,      1.0f, 0.0f, 1.0f,  // 4 - Magenta
-	 0.5f, -0.5f, -0.5f,      0.0f, 1.0f, 1.0f,  // 5 - Cyan
-	 0.5f,  0.5f, -0.5f,      1.0f, 1.0f, 1.0f,  // 6 - White
-	-0.5f,  0.5f, -0.5f,      0.0f, 0.0f, 0.0f   // 7 - Black
+GLfloat vertices[] = {
+	//   POSIÇÃO           COR             NORMAL
+	// Frente (z = +0.5)
+	-0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f, 1.0f,
+	 0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f, 1.0f,
+	 0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f, 1.0f,
+	-0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f, 1.0f,
+
+	// Trás (z = -0.5)
+	-0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f,-1.0f,
+	 0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f,-1.0f,
+	 0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f,-1.0f,
+	-0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f,-1.0f,
+
+	// Direita (x = +0.5)
+	 0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   1.0f, 0.0f, 0.0f,
+	 0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   1.0f, 0.0f, 0.0f,
+	 0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   1.0f, 0.0f, 0.0f,
+	 0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   1.0f, 0.0f, 0.0f,
+
+	 // Esquerda (x = -0.5)
+	 -0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,  -1.0f, 0.0f, 0.0f,
+	 -0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,  -1.0f, 0.0f, 0.0f,
+	 -0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,  -1.0f, 0.0f, 0.0f,
+	 -0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,  -1.0f, 0.0f, 0.0f,
+
+	 // Topo (y = +0.5)
+	 -0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 1.0f, 0.0f,
+	  0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 1.0f, 0.0f,
+	  0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 1.0f, 0.0f,
+	 -0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 1.0f, 0.0f,
+
+	 // Fundo (y = -0.5)
+	 -0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f,-1.0f, 0.0f,
+	  0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f,-1.0f, 0.0f,
+	  0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f,-1.0f, 0.0f,
+	 -0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f,-1.0f, 0.0f
 };
 
-// Indices for vertices order
-GLuint indices[] =
-{
-	// Front face
+
+GLuint indices[] = {
+	// Frente
 	0, 1, 2,
-	0, 2, 3,
-	// Back face
-	4, 5, 6,
-	4, 6, 7,
-	// Right face
-	1, 5, 6,
-	1, 6, 2,
-	// Left face
-	0, 4, 7,
-	0, 7, 3,
-	// Top face
-	3, 2, 6,
-	3, 6, 7,
-	// Bottom face
-	0, 1, 5,
-	0, 5, 4
-};
+	2, 3, 0,
 
+	// Trás
+	4, 5, 6,
+	6, 7, 4,
+
+	// Direita
+	8, 9, 10,
+	10, 11, 8,
+
+	// Esquerda
+	12, 13, 14,
+	14, 15, 12,
+
+	// Topo
+	16, 17, 18,
+	18, 19, 16,
+
+	// Fundo
+	20, 21, 22,
+	22, 23, 20
+};
 
 
 int main()
@@ -100,10 +130,11 @@ int main()
 	// Generates Element Buffer Object and links it to indices
 	EBO EBO1(indices, sizeof(indices));
 
-	// Links VBO to VAO
-	VAO1.LinkAttrib(VBO1, 0, 3, GL_FLOAT,6*sizeof(float), (void*)0);
 
-	VAO1.LinkAttrib(VBO1, 1, 3, GL_FLOAT, 6*sizeof(float), (void*)(3 * sizeof(float)));
+	VAO1.LinkAttrib(VBO1, 0, 3, GL_FLOAT, 9 * sizeof(float), (void*)0); //Coord
+	VAO1.LinkAttrib(VBO1, 1, 3, GL_FLOAT, 9 * sizeof(float), (void*)(3 * sizeof(float))); //Color 
+	VAO1.LinkAttrib(VBO1, 2, 3, GL_FLOAT, 9 * sizeof(float), (void*)(6 * sizeof(float))); //Normals
+
 	// Unbind all to prevent accidentally modifying them
 	VAO1.Unbind();
 	VBO1.Unbind();
@@ -121,11 +152,15 @@ int main()
 		// Clean the back buffer and assign the new color to it
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		shaderProgram.Activate();
-
+		glm::vec3 lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
+		glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+		glUniform4f(glGetUniformLocation(shaderProgram.ID, "lightColor"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
+		glUniform3f(glGetUniformLocation(shaderProgram.ID, "lightDirection"), lightDirection.x, lightDirection.y, lightDirection.z);
 		camera.Inputs(window);
-		camera.Matrix(45.0f, 0.1f, 100.0f, shaderProgram, "camMatrix");
-
-
+		camera.updateMatrix(45.0f, 0.1f, 100.0f);
+		camera.Matrix(shaderProgram, "camMatrix");
+		glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+		
 		VAO1.Bind();
 		// Drawing Cube
 		glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(int), GL_UNSIGNED_INT, 0);
