@@ -17,10 +17,10 @@ Floor::Floor(float area, float height)
     GLfloat vertices[] =
     {
         //    POSIÇÃO              COR                NORMAL
-        -half, height, -half,   0.47f, 0.47f, 0.47f,   0.0f, 1.0f, 0.0f,
-         half, height, -half,   0.47f, 0.47f, 0.47f,   0.0f, 1.0f, 0.0f,
-         half, height,  half,   0.47f, 0.47f, 0.47f,   0.0f, 1.0f, 0.0f,
-        -half, height,  half,   0.47f, 0.47f, 0.47f,   0.0f, 1.0f, 0.0f
+        -half, height, -half,   0.5f, 0.5f, 0.5f,   0.0f, 1.0f, 0.0f,
+         half, height, -half,   0.5f, 0.5f, 0.5f,   0.0f, 1.0f, 0.0f,
+         half, height,  half,   0.5f, 0.5f, 0.5f,   0.0f, 1.0f, 0.0f,
+        -half, height,  half,   0.5f, 0.5f, 0.5f,   0.0f, 1.0f, 0.0f
     };
 
     GLuint indices[] =

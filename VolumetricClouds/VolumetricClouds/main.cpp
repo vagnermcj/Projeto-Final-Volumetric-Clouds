@@ -11,97 +11,24 @@
 #include"VBO.h"
 #include"EBO.h"
 #include"Floor.h"
+#include"Cube.h"
 #include"Camera.h"
 
 
 static FloorPtr sceneFloor;
-
+static CubePtr sceneCube;
 const unsigned int width = 800;
 const unsigned int height = 800;
-
-// Vertices coordinates
-GLfloat vertices[] = {
-	//   POSIÇÃO           COR             NORMAL
-	// Frente (z = +0.5)
-	-0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f, 1.0f,
-	 0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f, 1.0f,
-	 0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f, 1.0f,
-	-0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f, 1.0f,
-
-	// Trás (z = -0.5)
-	-0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f,-1.0f,
-	 0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f,-1.0f,
-	 0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f,-1.0f,
-	-0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 0.0f,-1.0f,
-
-	// Direita (x = +0.5)
-	 0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   1.0f, 0.0f, 0.0f,
-	 0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   1.0f, 0.0f, 0.0f,
-	 0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   1.0f, 0.0f, 0.0f,
-	 0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   1.0f, 0.0f, 0.0f,
-
-	 // Esquerda (x = -0.5)
-	 -0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,  -1.0f, 0.0f, 0.0f,
-	 -0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,  -1.0f, 0.0f, 0.0f,
-	 -0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,  -1.0f, 0.0f, 0.0f,
-	 -0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,  -1.0f, 0.0f, 0.0f,
-
-	 // Topo (y = +0.5)
-	 -0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 1.0f, 0.0f,
-	  0.5f,  0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f, 1.0f, 0.0f,
-	  0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 1.0f, 0.0f,
-	 -0.5f,  0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f, 1.0f, 0.0f,
-
-	 // Fundo (y = -0.5)
-	 -0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f,-1.0f, 0.0f,
-	  0.5f, -0.5f, -0.5f,   1.0f,1.0f,1.0f,   0.0f,-1.0f, 0.0f,
-	  0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f,-1.0f, 0.0f,
-	 -0.5f, -0.5f,  0.5f,   1.0f,1.0f,1.0f,   0.0f,-1.0f, 0.0f
-};
-
-
-GLuint indices[] = {
-	// Frente
-	0, 1, 2,
-	2, 3, 0,
-
-	// Trás
-	4, 5, 6,
-	6, 7, 4,
-
-	// Direita
-	8, 9, 10,
-	10, 11, 8,
-
-	// Esquerda
-	12, 13, 14,
-	14, 15, 12,
-
-	// Topo
-	16, 17, 18,
-	18, 19, 16,
-
-	// Fundo
-	20, 21, 22,
-	22, 23, 20
-};
 
 
 int main()
 {
 	// Initialize GLFW
 	glfwInit();
-
-	// Tell GLFW what version of OpenGL we are using 
-	// In this case we are using OpenGL 4.1
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-	// Tell GLFW we are using the CORE profile
-	// So that means we only have the modern functions
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	// Create a GLFWwindow object of 800 by 800 pixels, naming it "YoutubeOpenGL"
-	GLFWwindow* window = glfwCreateWindow(width, height, "Window", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(width, height, "Clouds", NULL, NULL);
 	// Error check if the window fails to create
 	if (window == NULL)
 	{
@@ -115,73 +42,71 @@ int main()
 	gladLoadGL();
 	glViewport(0, 0, width, height);
 
-
-
-	// Generates Shader object using shaders defualt.vert and default.frag
 	Shader shaderProgram("default.vert", "default.frag");
 
-
-	// Generates Vertex Array Object and binds it
-	VAO VAO1;
-	VAO1.Bind();
-
-	// Generates Vertex Buffer Object and links it to vertices
-	VBO VBO1(vertices, sizeof(vertices));
-	// Generates Element Buffer Object and links it to indices
-	EBO EBO1(indices, sizeof(indices));
-
-
-	VAO1.LinkAttrib(VBO1, 0, 3, GL_FLOAT, 9 * sizeof(float), (void*)0); //Coord
-	VAO1.LinkAttrib(VBO1, 1, 3, GL_FLOAT, 9 * sizeof(float), (void*)(3 * sizeof(float))); //Color 
-	VAO1.LinkAttrib(VBO1, 2, 3, GL_FLOAT, 9 * sizeof(float), (void*)(6 * sizeof(float))); //Normals
-
-	// Unbind all to prevent accidentally modifying them
-	VAO1.Unbind();
-	VBO1.Unbind();
-	EBO1.Unbind();
-
+	//Scene Elements
 	sceneFloor = Floor::Make(100.0f, -1.0f);
+	sceneCube = Cube::Make();
 	Camera camera(width, height, glm::vec3(0.0f, 0.0f, 2.0f));
+	glm::vec3 lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
+	glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
-	glEnable(GL_DEPTH_TEST); //Enable the depth calculation in the gl, so the triangles don't get buggy 
+	//GL Configs
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
+	glFrontFace(GL_CCW);
 
-	// Main while loop
+	//FPS counters
+	double prevTime = 0.0;
+	double crntTime = 0.0;
+	double timeDiff;
+	unsigned int counter = 0;
+
 	while (!glfwWindowShouldClose(window))
 	{
 		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		// Clean the back buffer and assign the new color to it
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
+		//FPS counting
+		crntTime = glfwGetTime();
+		timeDiff = crntTime - prevTime;
+		counter++;
+
+		if (timeDiff >= 1.0 / 30.0)
+		{
+			std::string FPS = std::to_string((1.0 / timeDiff) * counter);
+			std::string ms = std::to_string((timeDiff / counter) * 1000);
+			std::string newTitle = "Clouds - " + FPS + "FPS / " + ms + "ms";
+			glfwSetWindowTitle(window, newTitle.c_str());
+
+			prevTime = crntTime;
+			counter = 0;
+		}
+		
+		
 		shaderProgram.Activate();
-		glm::vec3 lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
-		glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 		glUniform4f(glGetUniformLocation(shaderProgram.ID, "lightColor"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
 		glUniform3f(glGetUniformLocation(shaderProgram.ID, "lightDirection"), lightDirection.x, lightDirection.y, lightDirection.z);
+		
+		//Camera Update
 		camera.Inputs(window);
-		camera.updateMatrix(45.0f, 0.1f, 100.0f);
+		camera.updateMatrix(45.0f, 0.1f, 100.0f); //Projection * view
 		camera.Matrix(shaderProgram, "camMatrix");
 		glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 		
-		VAO1.Bind();
-		// Drawing Cube
-		glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(int), GL_UNSIGNED_INT, 0);
-
+		//Drawing Elements
+		sceneCube->Draw();
 		sceneFloor->Draw();
-		// Swap the back buffer with the front buffer
+
+
 		glfwSwapBuffers(window);
-		// Take care of all GLFW events
 		glfwPollEvents();
 	}
 
-
-
-	// Delete all the objects we've created
-	VAO1.Delete();
-	VBO1.Delete();
-	EBO1.Delete();
 	shaderProgram.Delete();
-	// Delete window before ending the program
 	glfwDestroyWindow(window);
-	// Terminate GLFW before ending the program
 	glfwTerminate();
 	return 0;
 }
