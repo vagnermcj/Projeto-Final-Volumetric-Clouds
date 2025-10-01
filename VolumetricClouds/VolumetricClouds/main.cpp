@@ -14,12 +14,12 @@
 #include"Cube.h"
 #include"Camera.h"
 
-
-static FloorPtr sceneFloor;
-static CubePtr sceneCube;
+static GLuint quadID;
 const unsigned int width = 800;
 const unsigned int height = 800;
 
+void initScreenQuad();
+void drawScreenQuad();
 
 int main()
 {
@@ -42,20 +42,19 @@ int main()
 	gladLoadGL();
 	glViewport(0, 0, width, height);
 
-	Shader shaderProgram("default.vert", "default.frag");
+	//Shader shaderProgram("default.vert", "default.frag");
+	Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
 
-	//Scene Elements
-	sceneFloor = Floor::Make(100.0f, -1.0f);
-	sceneCube = Cube::Make();
+	//Quad
+	initScreenQuad();
+
+	//Camera
 	Camera camera(width, height, glm::vec3(0.0f, 0.0f, 2.0f));
 	glm::vec3 lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
 	glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
-	//GL Configs
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	glFrontFace(GL_CCW);
+
+
 
 	//FPS counters
 	double prevTime = 0.0;
@@ -86,27 +85,55 @@ int main()
 		}
 		
 		
-		shaderProgram.Activate();
-		glUniform4f(glGetUniformLocation(shaderProgram.ID, "lightColor"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
-		glUniform3f(glGetUniformLocation(shaderProgram.ID, "lightDirection"), lightDirection.x, lightDirection.y, lightDirection.z);
+		rayMarchingProgram.Activate();
 		
+
+		drawScreenQuad();
 		//Camera Update
 		camera.Inputs(window);
 		camera.updateMatrix(45.0f, 0.1f, 100.0f); //Projection * view
-		camera.Matrix(shaderProgram, "camMatrix");
-		glUniform3f(glGetUniformLocation(shaderProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-		
-		//Drawing Elements
-		sceneCube->Draw();
-		sceneFloor->Draw();
-
-
+		camera.Matrix(rayMarchingProgram, "camMatrix");
+		glUniform3f(glGetUniformLocation(rayMarchingProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
+	
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
-	shaderProgram.Delete();
+	rayMarchingProgram.Delete();
 	glfwDestroyWindow(window);
 	glfwTerminate();
 	return 0;
+}
+
+void initScreenQuad()
+{
+	VAO quadVAO;
+	quadVAO.Bind();
+
+	GLfloat quadVertices[] = {
+		// pos      // texcoords (se quiser usar depois)
+		-1.0f,  1.0f,  0.0f, 1.0f,
+		-1.0f, -1.0f,  0.0f, 0.0f,
+		 1.0f, -1.0f,  1.0f, 0.0f,
+
+		-1.0f,  1.0f,  0.0f, 1.0f,
+		 1.0f, -1.0f,  1.0f, 0.0f,
+		 1.0f,  1.0f,  1.0f, 1.0f
+	};
+
+	quadID = quadVAO.ID;
+
+	VBO quadVBO(quadVertices, sizeof(quadVertices));
+	quadVAO.LinkAttrib(quadVBO, 0, 2, GL_FLOAT, 4 * sizeof(float), (void*)0); //Coord
+	quadVAO.LinkAttrib(quadVBO, 1, 2, GL_FLOAT, 4 * sizeof(float), (void*)(2 * sizeof(float))); // texcoords
+
+
+	quadVAO.Unbind();
+}
+
+void drawScreenQuad()
+{
+	glBindVertexArray(quadID);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	glBindVertexArray(0);
 }
