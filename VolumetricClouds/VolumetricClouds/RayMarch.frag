@@ -5,35 +5,77 @@ in vec2 TexCoord;
 uniform mat4 camMatrix;
 uniform vec3 camPos;
 
+float sphereDensity(vec3 p) {
+    float sphere = 1.0 - length(p - vec3(0.0, 1.0, -3.0));
+    return clamp(sphere, 0.0, 1.0);
+}
 
-// Função de distância: esfera
+
+float sdBox( vec3 p, vec3 b )
+{
+  vec3 q = abs(p) - b;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+
+float boxDensity(vec3 p)
+{
+    vec3 boxCenter = vec3(2.0, 0.5, -4.0);
+    vec3 boxSize   = vec3(0.5);
+    float d = sdBox(p - boxCenter, boxSize);
+
+    // transforma distância em densidade (inversamente)
+    float dens = 1.0 - smoothstep(-boxSize.x, 0.0, d);
+    return clamp(dens, 0.0, 1.0);
+}
+
+
 float sphereSDF(vec3 p, float r) {
     return length(p) - r;
 }
 
-// Função de distância: plano (y=0)
 float planeSDF(vec3 p) {
     return p.y;
 }
 
-// Combinação: pega o menor valor
 float sceneSDF(vec3 p) {
-    float dSphere = sphereSDF(p - vec3(0.0, 1.0, -3.0), 1.0);
-    float dPlane  = planeSDF(p);
-    return min(dSphere, dPlane);
+    vec3 spherePos = vec3(0.0, 1.0, -3.0);
+    vec3 boxPos = vec3(2.0, 0.5, -4.0);
+    vec3 groundPos = vec3(0.0, -0.5, 0.0);
+    float dBox = sdBox(p - boxPos, vec3(0.5, 0.5, 0.5)); //Caixa 1x1x1
+    float dSphere = sphereSDF(p - spherePos, 1.0);
+    float dPlane  = planeSDF(p - groundPos);
+    return min(dSphere, dBox);
 }
 
 // Ray marching
-float rayMarch(vec3 ro, vec3 rd) {
+vec3 rayMarch(vec3 ro, vec3 rd) {
     float t = 0.0;
-    for (int i = 0; i < 64; i++) {
+    vec3 color = vec3(0.0);
+    vec3 bgColor = vec3(0.85, 0.9, 1.0); // cor do céu
+    float cloudStepSize = 0.05; // tamanho do passo para nuvens
+    float extinction = 0.1; // taxa de extinção da luz
+    float totalDensity = 0.0; // densidade total acumulada
+
+
+    for (int i = 0; i < 124; i++) {
         vec3 p = ro + rd * t;
         float d = sceneSDF(p);
-        if (d < 0.001) return t; // bateu
-        t += d;
+        if (d < 0.001) //Inside the cloud
+        {
+            float sphereDens = sphereDensity(p);
+            float boxDens = boxDensity(p);
+            float pointDens = max(sphereDens, boxDens);
+            color += vec3(1.0) * pointDens * 0.05;
+            t += cloudStepSize;
+        }
+        else //Outside the cloud
+        {
+            t += d;
+        }
+
         if (t > 100.0) break; // muito longe
     }
-    return -1.0; // nada encontrado
+    return mix(bgColor, color, 0.5);
 }
 
 void main()
@@ -51,10 +93,7 @@ void main()
 
     vec3 ro = camPos; // origem = posição da câmera
 
-    float t = rayMarch(ro, rd);
+    vec3 color = rayMarch(ro, rd);
 
-    if (t > 0.0)
-        FragColor = vec4(0.6, 0.6, 0.6, 1.0); // cor do hit
-    else
-        FragColor = vec4(0.0, 0.0, 0.0, 1.0); // fundo preto
+    FragColor = vec4(color, 1.0);
 }
