@@ -23,8 +23,9 @@ float boxDensity(vec3 p)
     vec3 boxSize   = vec3(0.5);
     float d = sdBox(p - boxCenter, boxSize);
 
-    // transforma distância em densidade (inversamente)
-    float dens = 1.0 - smoothstep(-boxSize.x, 0.0, d);
+    // transforma distância em densidade
+    float dens = smoothstep(0.0, boxSize.x * 0.5, -d);
+    dens = pow(dens, 2.0);
     return clamp(dens, 0.0, 1.0);
 }
 
@@ -44,7 +45,7 @@ float sceneSDF(vec3 p) {
     float dBox = sdBox(p - boxPos, vec3(0.5, 0.5, 0.5)); //Caixa 1x1x1
     float dSphere = sphereSDF(p - spherePos, 1.0);
     float dPlane  = planeSDF(p - groundPos);
-    return min(dSphere, dBox);
+    return dBox;
 }
 
 // Ray marching
@@ -52,6 +53,10 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
     float t = 0.0;
     vec3 color = vec3(0.0);
     vec3 bgColor = vec3(0.85, 0.9, 1.0); // cor do céu
+    vec3 lightColor = vec3(1.0, 0.0, 0.0); //Cor da luz
+    float transmittance = 1.0;
+    float absorptionCoefficient = 0.05; //Coeficiente de absorção da luz
+    vec3 lightDir = normalize(vec3(0.0,0.0,0.0)); // direção da luz
     float cloudStepSize = 0.05; // tamanho do passo para nuvens
     float extinction = 0.1; // taxa de extinção da luz
     float totalDensity = 0.0; // densidade total acumulada
@@ -62,10 +67,11 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
         float d = sceneSDF(p);
         if (d < 0.001) //Inside the cloud
         {
-            float sphereDens = sphereDensity(p);
+            //Substituir depois pela densidade do perlin noise
             float boxDens = boxDensity(p);
-            float pointDens = max(sphereDens, boxDens);
-            color += vec3(1.0) * pointDens * 0.05;
+            //color += vec3(1.0) * boxDens * 0.05;
+            color += lightColor * boxDens * transmittance * cloudStepSize;
+            transmittance *= exp(absorptionCoefficient * -cloudStepSize);
             t += cloudStepSize;
         }
         else //Outside the cloud
@@ -73,6 +79,7 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
             t += d;
         }
 
+        if(transmittance < 0.01) break;
         if (t > 100.0) break; // muito longe
     }
     return mix(bgColor, color, 0.5);
