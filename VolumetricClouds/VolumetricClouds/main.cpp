@@ -4,7 +4,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
 
 #include"shaderClass.h"
 #include"VAO.h"
@@ -53,8 +55,13 @@ int main()
 	glm::vec3 lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
 	glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
-
-
+	//ImGUI
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGui::StyleColorsDark();
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init("#version 410 core");
 
 	//FPS counters
 	double prevTime = 0.0;
@@ -67,6 +74,10 @@ int main()
 		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		// Clean the back buffer and assign the new color to it
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
 		
 		//FPS counting
 		crntTime = glfwGetTime();
@@ -84,6 +95,9 @@ int main()
 			counter = 0;
 		}
 		
+		ImGui::Begin("Volumetric Clouds");
+		ImGui::Text("Teste");
+		ImGui::End();
 		
 		rayMarchingProgram.Activate();
 		
@@ -95,10 +109,16 @@ int main()
 		camera.Matrix(rayMarchingProgram, "camMatrix");
 		glUniform3f(glGetUniformLocation(rayMarchingProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
 	
+
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 	rayMarchingProgram.Delete();
 	glfwDestroyWindow(window);
 	glfwTerminate();
