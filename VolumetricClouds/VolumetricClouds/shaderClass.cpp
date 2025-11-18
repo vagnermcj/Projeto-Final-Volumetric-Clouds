@@ -1,4 +1,5 @@
 #include"shaderClass.h"
+#include <glm/gtc/type_ptr.hpp>
 
 // Reads a text file and outputs a string with everything in the text file
 std::string get_file_contents(const char* filename)
@@ -93,4 +94,64 @@ void Shader::compileErrors(unsigned int shader, const char* type)
 			std::cout << "SHADER_LINKING_ERROR for:" << type << "\n" << infoLog << std::endl;
 		}
 	}
+}
+
+void Shader::SetUniform(const std::string& varname, int x) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniform1i(loc, x);
+}
+
+void Shader::SetUniform(const std::string& varname, float x) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniform1f(loc, x);
+}
+
+void Shader::SetUniform(const std::string& varname, const glm::vec3& vet) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniform3fv(loc, 1, glm::value_ptr(vet));
+}
+
+void Shader::SetUniform(const std::string& varname, const glm::vec4& vet) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniform4fv(loc, 1, glm::value_ptr(vet));
+}
+
+void Shader::SetUniform(const std::string& varname, const glm::mat4& mat) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(mat));
+}
+
+void Shader::SetUniform(const std::string& varname, const std::vector<int>& x) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniform1iv(loc, GLsizei(x.size()), x.data());
+}
+
+void Shader::SetUniform(const std::string& varname, const std::vector<float>& x) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniform1fv(loc, GLsizei(x.size()), x.data());
+}
+
+void Shader::SetUniform(const std::string& varname, const std::vector<glm::vec3>& vet) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniform3fv(loc, GLsizei(vet.size()), (float*)vet.data());
+}
+
+void Shader::SetUniform(const std::string& varname, const std::vector<glm::vec4>& vet) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniform4fv(loc, GLsizei(vet.size()), (float*)vet.data());
+}
+
+void Shader::SetUniform(const std::string& varname, const std::vector<glm::mat4>& mat) const
+{
+	GLint loc = glGetUniformLocation(ID, varname.c_str());
+	glUniformMatrix4fv(loc, GLsizei(mat.size()), GL_FALSE, (float*)mat.data());
 }

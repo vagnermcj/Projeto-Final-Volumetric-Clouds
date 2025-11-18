@@ -12,6 +12,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/vector_angle.hpp>
+#include <imgui/imgui.h>
 
 #include "shaderClass.h"
 
@@ -35,7 +36,7 @@ class Camera
 		Camera(int width, int height, glm::vec3 position);
 		void updateMatrix(float FOVdeg, float nearPlane, float farPlane);
 		void Matrix(Shader& shader, const char* uniform);
-		void Inputs(GLFWwindow* window);
+		void Inputs(GLFWwindow* window, ImGuiIO* io);
 	private:
 		float deltaTime = 0.0f;
 		float lastFrame = 0.0f;

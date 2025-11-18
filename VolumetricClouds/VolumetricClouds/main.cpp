@@ -50,61 +50,82 @@ int main()
 	//Quad
 	initScreenQuad();
 
-	//Camera
-	Camera camera(width, height, glm::vec3(0.0f, 0.0f, 2.0f));
-	glm::vec3 lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
-	glm::vec4 lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+	
 
 	//ImGUI
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 	ImGui::StyleColorsDark();
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init("#version 410 core");
 
-	//FPS counters
-	double prevTime = 0.0;
-	double crntTime = 0.0;
-	double timeDiff;
-	unsigned int counter = 0;
+	//Camera
+	Camera camera(width, height, glm::vec3(0.0f, 0.0f, 2.0f));
+	
+
+	//Parametros
+	glm::vec3 lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
+	glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+	glm::vec3 backgroundColor = glm::vec3(0.85, 0.9, 1.0); // cor do céu
+	glm::vec3 cloudPosition = glm::vec3(1.0f, 0.0f, -2.0f);
+	glm::vec3 cloudScale = glm::vec3(1.0f, 0.5f, 1.0f);
+
+	float absorptionCoefficient = 0.05; //Coeficiente de absorção da luz
+	float cloudStepSize = 0.05; // tamanho do passo para nuvens
+	int cloudMaxSteps = 124; //Maximo de passos do raymarching
+
 
 	while (!glfwWindowShouldClose(window))
 	{
+		glfwPollEvents();
 		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		// Clean the back buffer and assign the new color to it
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		rayMarchingProgram.Activate();
 
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-		
-		//FPS counting
-		crntTime = glfwGetTime();
-		timeDiff = crntTime - prevTime;
-		counter++;
 
-		if (timeDiff >= 1.0 / 30.0)
-		{
-			std::string FPS = std::to_string((1.0 / timeDiff) * counter);
-			std::string ms = std::to_string((timeDiff / counter) * 1000);
-			std::string newTitle = "Clouds - " + FPS + "FPS / " + ms + "ms";
-			glfwSetWindowTitle(window, newTitle.c_str());
-
-			prevTime = crntTime;
-			counter = 0;
-		}
+		ImGui::ShowDemoWindow();
 		
+		  
 		ImGui::Begin("Volumetric Clouds");
-		ImGui::Text("Teste");
+
+		ImGui::SeparatorText("General Setup");
+		ImGui::ColorEdit3("Background Color", glm::value_ptr(backgroundColor));
+		ImGui::DragFloat3("Cloud Position", glm::value_ptr(cloudPosition), 0.1f);
+		ImGui::DragFloat3("Cloud Scale", glm::value_ptr(cloudScale), 0.1f);
+
+		ImGui::SeparatorText("Ray Marching");
+		ImGui::DragInt("Cloud Max Steps", &cloudMaxSteps, 1, 0, ImGuiSliderFlags_AlwaysClamp);
+		ImGui::DragFloat("Cloud Step Size", &cloudStepSize, 0.001f, 0.001f, ImGuiSliderFlags_AlwaysClamp);
+
+		ImGui::SeparatorText("Lightning");
+		ImGui::DragFloat3("Light Direction (Normalized)", glm::value_ptr(lightDirection), 0.01f, 0.0f, 1.0f);
+		ImGui::ColorEdit3("Light Color", glm::value_ptr(lightColor));
+		ImGui::DragFloat("Absorption Coefficient", &absorptionCoefficient, 0.001f, 0.0f, 1.0f);
+
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
 		ImGui::End();
 		
-		rayMarchingProgram.Activate();
-		
+		//Passing Uniforms
+		rayMarchingProgram.SetUniform("lightDirection", lightDirection);
+		rayMarchingProgram.SetUniform("lightColor", lightColor);
+		rayMarchingProgram.SetUniform("backgroundColor", backgroundColor);
+		rayMarchingProgram.SetUniform("absorptionCoefficient", absorptionCoefficient);
+		rayMarchingProgram.SetUniform("cloudStepSize", cloudStepSize);
+		rayMarchingProgram.SetUniform("cloudMaxSteps", cloudMaxSteps);
+		rayMarchingProgram.SetUniform("cloudPosition", cloudPosition);
+		rayMarchingProgram.SetUniform("cloudScale", cloudScale);
 
 		drawScreenQuad();
 		//Camera Update
-		camera.Inputs(window);
+		camera.Inputs(window, &io);
 		camera.updateMatrix(45.0f, 0.1f, 100.0f); //Projection * view
 		camera.Matrix(rayMarchingProgram, "camMatrix");
 		glUniform3f(glGetUniformLocation(rayMarchingProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
@@ -112,8 +133,17 @@ int main()
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			GLFWwindow* backup_current_context = glfwGetCurrentContext();
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+			glfwMakeContextCurrent(backup_current_context);
+		}
+
 		glfwSwapBuffers(window);
-		glfwPollEvents();
+
 	}
 
 	ImGui_ImplOpenGL3_Shutdown();

@@ -4,6 +4,15 @@ in vec2 TexCoord;
 
 uniform mat4 camMatrix;
 uniform vec3 camPos;
+uniform vec3 lightDirection;
+uniform vec3 lightColor;
+uniform vec3 backgroundColor;
+uniform float absorptionCoefficient;
+uniform float cloudStepSize;
+uniform int cloudMaxSteps;
+uniform vec3 cloudPosition;
+uniform vec3 cloudScale;
+
 
 float sphereDensity(vec3 p) {
     float sphere = 1.0 - length(p - vec3(0.0, 1.0, -3.0));
@@ -15,6 +24,13 @@ float sdBox( vec3 p, vec3 b )
 {
   vec3 q = abs(p) - b;
   return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+
+float sdEllipsoid( vec3 p, vec3 r )
+{
+  float k0 = length(p/r);
+  float k1 = length(p/(r*r));
+  return k0*(k0-1.0)/k1;
 }
 
 float boxDensity(vec3 p)
@@ -45,32 +61,31 @@ float sceneSDF(vec3 p) {
     float dBox = sdBox(p - boxPos, vec3(0.5, 0.5, 0.5)); //Caixa 1x1x1
     float dSphere = sphereSDF(p - spherePos, 1.0);
     float dPlane  = planeSDF(p - groundPos);
-    return dBox;
+    
+    float dEllipsoid = sdEllipsoid(p - cloudPosition, cloudScale);
+    
+    return dEllipsoid;
 }
 
 // Ray marching
 vec3 rayMarch(vec3 ro, vec3 rd) {
+    
+    //Variaveis
     float t = 0.0;
     vec3 color = vec3(0.0);
-    vec3 bgColor = vec3(0.85, 0.9, 1.0); // cor do céu
-    vec3 lightColor = vec3(1.0, 0.0, 0.0); //Cor da luz
     float transmittance = 1.0;
-    float absorptionCoefficient = 0.05; //Coeficiente de absorção da luz
-    vec3 lightDir = normalize(vec3(0.0,0.0,0.0)); // direção da luz
-    float cloudStepSize = 0.05; // tamanho do passo para nuvens
-    float extinction = 0.1; // taxa de extinção da luz
     float totalDensity = 0.0; // densidade total acumulada
 
 
-    for (int i = 0; i < 124; i++) {
+    for (int i = 0; i < cloudMaxSteps; i++) {
         vec3 p = ro + rd * t;
         float d = sceneSDF(p);
         if (d < 0.001) //Inside the cloud
         {
             //Substituir depois pela densidade do perlin noise
-            float boxDens = boxDensity(p);
-            //color += vec3(1.0) * boxDens * 0.05;
-            color += lightColor * boxDens * transmittance * cloudStepSize;
+            float boxDens = sceneSDF(p);
+
+            color += lightColor * -boxDens * transmittance * cloudStepSize;
             transmittance *= exp(absorptionCoefficient * -cloudStepSize);
             t += cloudStepSize;
         }
@@ -82,7 +97,7 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
         if(transmittance < 0.01) break;
         if (t > 100.0) break; // muito longe
     }
-    return mix(bgColor, color, 0.5);
+    return mix(backgroundColor, color, 0.5);
 }
 
 void main()
