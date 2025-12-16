@@ -15,8 +15,11 @@
 #include"Floor.h"
 #include"Cube.h"
 #include"Camera.h"
+#include"PerlinNoise3D.h"
+#include"WorleyNoise3D.h"
 
 static GLuint quadID;
+static GLuint noiseTexture3D;
 const unsigned int width = 800;
 const unsigned int height = 800;
 
@@ -47,6 +50,15 @@ int main()
 	//Shader shaderProgram("default.vert", "default.frag");
 	Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
 
+	//Perlin Setup
+	PerlinNoise3D perlinNoise;
+	perlinNoise.Generate(64.0f);
+	
+	WorleyNoise3D worleyNoise(64, 10);
+	worleyNoise.Generate();
+
+
+
 	//Quad
 	initScreenQuad();
 
@@ -72,10 +84,14 @@ int main()
 	glm::vec3 backgroundColor = glm::vec3(0.85, 0.9, 1.0); // cor do céu
 	glm::vec3 cloudPosition = glm::vec3(1.0f, 0.0f, -2.0f);
 	glm::vec3 cloudScale = glm::vec3(1.0f, 0.5f, 1.0f);
+	glm::vec3 windDirection = glm::vec3(1.0f, 0.0f, 1.0f);
 
 	float absorptionCoefficient = 0.05; //Coeficiente de absorção da luz
-	float cloudStepSize = 0.05; // tamanho do passo para nuvens
-	int cloudMaxSteps = 124; //Maximo de passos do raymarching
+	float cloudStepSize = 0.01; // tamanho do passo para nuvens
+	float cloudCoverage = 0.5f; // Cobertura de nuvens
+	int cloudMaxSteps = 248; //Maximo de passos do raymarching
+	float windSpeed = 0.1f; //Velocidade do vento
+
 
 
 	while (!glfwWindowShouldClose(window))
@@ -85,6 +101,10 @@ int main()
 		// Clean the back buffer and assign the new color to it
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		rayMarchingProgram.Activate();
+		perlinNoise.Bind(0);
+		worleyNoise.Bind(1);
+		rayMarchingProgram.SetUniform("perlinTex", 0);
+		rayMarchingProgram.SetUniform("worleyTex", 1);
 
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -99,13 +119,16 @@ int main()
 		ImGui::ColorEdit3("Background Color", glm::value_ptr(backgroundColor));
 		ImGui::DragFloat3("Cloud Position", glm::value_ptr(cloudPosition), 0.1f);
 		ImGui::DragFloat3("Cloud Scale", glm::value_ptr(cloudScale), 0.1f);
+		ImGui::DragFloat3("Wind Direction (Normalized)", glm::value_ptr(windDirection), 0.01f, -1.0f, 1.0f);
+		ImGui::DragFloat("Wind Speed", &windSpeed, 0.01f, 0.0f);
+		ImGui::DragFloat("Cloud Coverage", &cloudCoverage, 0.01f, 0.0f, 1.0f);
 
 		ImGui::SeparatorText("Ray Marching");
 		ImGui::DragInt("Cloud Max Steps", &cloudMaxSteps, 1, 0, ImGuiSliderFlags_AlwaysClamp);
 		ImGui::DragFloat("Cloud Step Size", &cloudStepSize, 0.001f, 0.001f, ImGuiSliderFlags_AlwaysClamp);
 
 		ImGui::SeparatorText("Lightning");
-		ImGui::DragFloat3("Light Direction (Normalized)", glm::value_ptr(lightDirection), 0.01f, 0.0f, 1.0f);
+		//ImGui::DragFloat3("Light Direction (Normalized)", glm::value_ptr(lightDirection), 0.01f, 0.0f, 1.0f);
 		ImGui::ColorEdit3("Light Color", glm::value_ptr(lightColor));
 		ImGui::DragFloat("Absorption Coefficient", &absorptionCoefficient, 0.001f, 0.0f, 1.0f);
 
@@ -113,6 +136,8 @@ int main()
 
 		ImGui::End();
 		
+
+		float t = glfwGetTime();
 		//Passing Uniforms
 		rayMarchingProgram.SetUniform("lightDirection", lightDirection);
 		rayMarchingProgram.SetUniform("lightColor", lightColor);
@@ -122,6 +147,10 @@ int main()
 		rayMarchingProgram.SetUniform("cloudMaxSteps", cloudMaxSteps);
 		rayMarchingProgram.SetUniform("cloudPosition", cloudPosition);
 		rayMarchingProgram.SetUniform("cloudScale", cloudScale);
+		rayMarchingProgram.SetUniform("windDirection", windDirection);
+		rayMarchingProgram.SetUniform("windSpeed", windSpeed);
+		rayMarchingProgram.SetUniform("time", t);
+		rayMarchingProgram.SetUniform("cloudCoverage", cloudCoverage);
 
 		drawScreenQuad();
 		//Camera Update

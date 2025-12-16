@@ -12,6 +12,12 @@ uniform float cloudStepSize;
 uniform int cloudMaxSteps;
 uniform vec3 cloudPosition;
 uniform vec3 cloudScale;
+uniform float time;
+uniform float windSpeed;
+uniform vec3 windDirection;
+uniform float cloudCoverage;
+uniform sampler3D perlinTex;
+uniform sampler3D worleyTex;
 
 
 float sphereDensity(vec3 p) {
@@ -67,6 +73,53 @@ float sceneSDF(vec3 p) {
     return dEllipsoid;
 }
 
+float remap(float value, float start1, float stop1, float start2, float stop2)
+{
+    float outgoing = start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
+    return outgoing;
+}
+
+float cloudDensity(vec3 p, float sdf)
+{
+    // 1. Coordenadas com vento
+    vec3 q = p - windDirection * time * windSpeed;
+
+    // --- A BASE DA NUVEM (SHAPE) ---
+    
+    // Leitura do Perlin (Baixa frequência - forma geral)
+    float perlin = texture(perlinTex, q * 0.01).r;
+    
+    // Leitura do Worley (Média frequência - os "gomos")
+    // IMPORTANTE: Inverta o Worley para ter "bolhas" em vez de "células"
+    float worley = 1.0 - texture(worleyTex, q * 0.05).r; // Ajuste a escala (0.02) conforme necessário
+    
+    // Combinar: O Perlin define onde "pode" ter nuvem, o Worley define o formato "arredondado"
+    // Essa técnica é chamada de "Perlin-Worley"
+    float baseCloud = remap(perlin, 0.0, 1.0, worley, 1.0); 
+    // Ou uma mistura simples para testar: float baseCloud = mix(perlin, worley, 0.5);
+
+    // --- DEFININDO A ESPARSIDADE (COVERAGE) ---
+    
+    // Aqui está a mágica para deixar "esparso".
+    // Usamos o remap para cortar tudo que estiver abaixo do cloudCoverage.
+    // cloudCoverage alto = nuvens menores e mais separadas.
+    // cloudCoverage baixo = céu nublado (overcast).
+    float density = remap(baseCloud, cloudCoverage, 1.0, 0.0, 1.0);
+    
+    // Se a densidade for 0 ou negativa após o remap, não tem nuvem aqui.
+    if (density <= 0.0) return 0.0;
+
+    // --- ENVELOPE DO ELIPSOIDE ---
+    // O elipsoide agora serve apenas como "container" máximo, não como forma principal.
+    // Suavizamos as bordas do elipsoide para a nuvem não ser cortada abruptamente.
+    float envelope = smoothstep(0.0, -0.5, sdf); 
+    
+    density *= envelope;
+
+    return clamp(density, 0.0, 1.0);
+}
+
+
 // Ray marching
 vec3 rayMarch(vec3 ro, vec3 rd) {
     
@@ -82,10 +135,9 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
         float d = sceneSDF(p);
         if (d < 0.001) //Inside the cloud
         {
-            //Substituir depois pela densidade do perlin noise
-            float boxDens = sceneSDF(p);
+            float cloudDens = cloudDensity(p, d);
 
-            color += lightColor * -boxDens * transmittance * cloudStepSize;
+            color += lightColor * cloudDens * transmittance * cloudStepSize * 0.5;
             transmittance *= exp(absorptionCoefficient * -cloudStepSize);
             t += cloudStepSize;
         }
@@ -94,26 +146,25 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
             t += d;
         }
 
-        if(transmittance < 0.01) break;
+        if(transmittance < 0.1) break;
         if (t > 100.0) break; // muito longe
     }
     return mix(backgroundColor, color, 0.5);
 }
 
+
 void main()
 {
-    // coordenadas normalizadas (-1 a 1)
+    // Normaliza UV
     vec2 uv = TexCoord * 2.0 - 1.0;
-    uv.x *= 800.0/800.0; // aspect ratio (substituir pela largura/altura reais)
 
-    // Constrói raio em espaço de clip
+    // Ray em espaço de clip
     vec4 ray_clip = vec4(uv, -1.0, 1.0);
 
-    // Converte para espaço de mundo
+    // Para world space
     vec4 ray_world = inverse(camMatrix) * ray_clip;
     vec3 rd = normalize(ray_world.xyz / ray_world.w - camPos);
-
-    vec3 ro = camPos; // origem = posição da câmera
+    vec3 ro = camPos;
 
     vec3 color = rayMarch(ro, rd);
 

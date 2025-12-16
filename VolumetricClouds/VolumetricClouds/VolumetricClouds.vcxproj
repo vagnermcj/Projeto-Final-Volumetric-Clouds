@@ -32,9 +32,11 @@
     <ClCompile Include="Libraries\include\imgui\imgui_tables.cpp" />
     <ClCompile Include="Libraries\include\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PerlinNoise3D.cpp" />
     <ClCompile Include="shaderClass.cpp" />
     <ClCompile Include="VAO.cpp" />
     <ClCompile Include="VBO.cpp" />
+    <ClCompile Include="WorleyNoise3D.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
@@ -42,9 +44,11 @@
     <ClInclude Include="EBO.h" />
     <ClInclude Include="Floor.h" />
     <ClInclude Include="imgui\imgui.h" />
+    <ClInclude Include="PerlinNoise3D.h" />
     <ClInclude Include="shaderClass.h" />
     <ClInclude Include="VAO.h" />
     <ClInclude Include="VBO.h" />
+    <ClInclude Include="WorleyNoise3D.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="default.frag" />
