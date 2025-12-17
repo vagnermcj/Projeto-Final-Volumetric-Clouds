@@ -83,13 +83,14 @@ int main()
 	glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 	glm::vec3 backgroundColor = glm::vec3(0.85, 0.9, 1.0); // cor do céu
 	glm::vec3 cloudPosition = glm::vec3(1.0f, 0.0f, -2.0f);
-	glm::vec3 cloudScale = glm::vec3(1.0f, 0.5f, 1.0f);
+	glm::vec3 cloudScale = glm::vec3(5.0f, 1.0f, 5.0f);
 	glm::vec3 windDirection = glm::vec3(1.0f, 0.0f, 1.0f);
 
 	float absorptionCoefficient = 0.05; //Coeficiente de absorção da luz
 	float cloudStepSize = 0.01; // tamanho do passo para nuvens
 	float cloudCoverage = 0.5f; // Cobertura de nuvens
 	int cloudMaxSteps = 248; //Maximo de passos do raymarching
+	int lightMaxSteps = 3;
 	float windSpeed = 0.1f; //Velocidade do vento
 
 
@@ -128,9 +129,10 @@ int main()
 		ImGui::DragFloat("Cloud Step Size", &cloudStepSize, 0.001f, 0.001f, ImGuiSliderFlags_AlwaysClamp);
 
 		ImGui::SeparatorText("Lightning");
-		//ImGui::DragFloat3("Light Direction (Normalized)", glm::value_ptr(lightDirection), 0.01f, 0.0f, 1.0f);
+		ImGui::DragFloat3("Light Direction (Normalized)", glm::value_ptr(lightDirection), 0.01f, 0.0f, 1.0f);
 		ImGui::ColorEdit3("Light Color", glm::value_ptr(lightColor));
 		ImGui::DragFloat("Absorption Coefficient", &absorptionCoefficient, 0.001f, 0.0f, 1.0f);
+		ImGui::DragInt("Light Max Steps", &lightMaxSteps, 1, 0, 5, "%d", ImGuiSliderFlags_AlwaysClamp);
 
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
@@ -141,6 +143,7 @@ int main()
 		//Passing Uniforms
 		rayMarchingProgram.SetUniform("lightDirection", lightDirection);
 		rayMarchingProgram.SetUniform("lightColor", lightColor);
+		rayMarchingProgram.SetUniform("lightSteps", lightMaxSteps);
 		rayMarchingProgram.SetUniform("backgroundColor", backgroundColor);
 		rayMarchingProgram.SetUniform("absorptionCoefficient", absorptionCoefficient);
 		rayMarchingProgram.SetUniform("cloudStepSize", cloudStepSize);

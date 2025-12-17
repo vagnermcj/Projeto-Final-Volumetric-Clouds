@@ -6,6 +6,7 @@ uniform mat4 camMatrix;
 uniform vec3 camPos;
 uniform vec3 lightDirection;
 uniform vec3 lightColor;
+uniform int lightSteps;
 uniform vec3 backgroundColor;
 uniform float absorptionCoefficient;
 uniform float cloudStepSize;
@@ -18,7 +19,6 @@ uniform vec3 windDirection;
 uniform float cloudCoverage;
 uniform sampler3D perlinTex;
 uniform sampler3D worleyTex;
-
 
 float sphereDensity(vec3 p) {
     float sphere = 1.0 - length(p - vec3(0.0, 1.0, -3.0));
@@ -79,44 +79,49 @@ float remap(float value, float start1, float stop1, float start2, float stop2)
     return outgoing;
 }
 
+float HG(float costheta, float g) {
+    float g2 = g * g;
+    return (1.0 - g2) / (4.0 * 3.1415 * pow(1.0 + g2 - 2.0 * g * costheta, 1.5));
+}
+
 float cloudDensity(vec3 p, float sdf)
 {
-    // 1. Coordenadas com vento
     vec3 q = p - windDirection * time * windSpeed;
 
-    // --- A BASE DA NUVEM (SHAPE) ---
-    
-    // Leitura do Perlin (Baixa frequência - forma geral)
-    float perlin = texture(perlinTex, q * 0.01).r;
-    
-    // Leitura do Worley (Média frequência - os "gomos")
-    // IMPORTANTE: Inverta o Worley para ter "bolhas" em vez de "células"
-    float worley = 1.0 - texture(worleyTex, q * 0.05).r; // Ajuste a escala (0.02) conforme necessário
-    
-    // Combinar: O Perlin define onde "pode" ter nuvem, o Worley define o formato "arredondado"
-    // Essa técnica é chamada de "Perlin-Worley"
-    float baseCloud = remap(perlin, 0.0, 1.0, worley, 1.0); 
-    // Ou uma mistura simples para testar: float baseCloud = mix(perlin, worley, 0.5);
+    float worley = 1.0 - texture(worleyTex, q * 0.05).r;
+    if(worley <= 0.0) return 0.0;
 
-    // --- DEFININDO A ESPARSIDADE (COVERAGE) ---
-    
-    // Aqui está a mágica para deixar "esparso".
-    // Usamos o remap para cortar tudo que estiver abaixo do cloudCoverage.
-    // cloudCoverage alto = nuvens menores e mais separadas.
-    // cloudCoverage baixo = céu nublado (overcast).
+    float perlin = texture(perlinTex, q * 0.01).r;
+
+    float baseCloud = worley * 0.4 + perlin * 0.6; 
+ 
     float density = remap(baseCloud, cloudCoverage, 1.0, 0.0, 1.0);
-    
-    // Se a densidade for 0 ou negativa após o remap, não tem nuvem aqui.
+
     if (density <= 0.0) return 0.0;
 
-    // --- ENVELOPE DO ELIPSOIDE ---
-    // O elipsoide agora serve apenas como "container" máximo, não como forma principal.
-    // Suavizamos as bordas do elipsoide para a nuvem não ser cortada abruptamente.
     float envelope = smoothstep(0.0, -0.5, sdf); 
     
     density *= envelope;
 
     return clamp(density, 0.0, 1.0);
+}
+
+//Light Marching
+float lightMarching(vec3 pos)
+{
+    float totalDensity = 0.0;
+    for(int i = 0; i < lightSteps; i++)
+    {
+        vec3 p = pos + lightDirection * float(i) * 2.0;
+        float d = sceneSDF(p);
+        if(d < 0.001)
+        {
+            totalDensity += max(0.0, cloudDensity(p, d)  * 2.0);
+        }
+    }
+
+    float transmittance = exp(absorptionCoefficient * -totalDensity);
+    return transmittance;
 }
 
 
@@ -125,10 +130,10 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
     
     //Variaveis
     float t = 0.0;
-    vec3 color = vec3(0.0);
     float transmittance = 1.0;
-    float totalDensity = 0.0; // densidade total acumulada
-
+    vec3 lightEnergy = vec3(0.0); 
+    float costheta = dot(normalize(lightDirection), rd);
+    float phaseVal = HG(costheta, 0.8);
 
     for (int i = 0; i < cloudMaxSteps; i++) {
         vec3 p = ro + rd * t;
@@ -136,21 +141,33 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
         if (d < 0.001) //Inside the cloud
         {
             float cloudDens = cloudDensity(p, d);
+            if(cloudDens > 0.0) 
+            {
+                float lightTransmittance = lightMarching(p);
+                
+                vec3 Light = lightColor  * lightTransmittance * cloudDens  * phaseVal;
+                
+                lightEnergy += Light * transmittance;
 
-            color += lightColor * cloudDens * transmittance * cloudStepSize * 0.5;
-            transmittance *= exp(absorptionCoefficient * -cloudStepSize);
+                transmittance *= exp(-absorptionCoefficient * cloudDens * cloudStepSize);
+            }
+            
             t += cloudStepSize;
         }
-        else //Outside the cloud
+        else
         {
-            t += d;
+            t += max(d, 0.05);
         }
 
         if(transmittance < 0.1) break;
-        if (t > 100.0) break; // muito longe
+        if (t > 100.0) break;
     }
-    return mix(backgroundColor, color, 0.5);
+
+   
+    return mix(backgroundColor, lightEnergy, 0.5);
 }
+
+
 
 
 void main()
