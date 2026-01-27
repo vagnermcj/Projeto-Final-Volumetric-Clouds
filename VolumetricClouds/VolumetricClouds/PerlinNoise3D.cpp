@@ -1,16 +1,11 @@
 #include "PerlinNoise3D.h"
 #include <cmath>
 
-PerlinNoise3D::PerlinNoise3D(int size) : size(size)
+PerlinNoise3D::PerlinNoise3D(int resolutionX, int resolutionY, int resolutionZ): _resolutionX(resolutionX), _resolutionY(resolutionY),
+_resolutionZ(resolutionZ)
 {
-    textureID = 0;
+    volumeData.resize(_resolutionX * _resolutionY * _resolutionZ);
     InitPermutation();
-}
-
-PerlinNoise3D::~PerlinNoise3D()
-{
-    if (textureID != 0)
-        glDeleteTextures(1, &textureID);
 }
 
 void PerlinNoise3D::InitPermutation()
@@ -105,45 +100,24 @@ float PerlinNoise3D::Perlin3D(float x, float y, float z)
 }
 
 
-void PerlinNoise3D::Generate(float scale)
+void PerlinNoise3D::Generate()
 {
-    std::vector<float> data(size * size * size);
 
-    for (int z = 0; z < size; z++)
-        for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
+    for (int z = 0; z < _resolutionZ; z++)
+        for (int y = 0; y < _resolutionY; y++)
+            for (int x = 0; x < _resolutionX; x++)
             {
-                float nx = float(x) / size;
-                float ny = float(y) / size;
-                float nz = float(z) / size;
+                float nx = float(x) / _resolutionX;
+                float ny = float(y) / _resolutionY;
+                float nz = float(z) / _resolutionZ;
 
-                float n = Perlin3D(nx * scale, ny * scale, nz * scale);
+                float n = Perlin3D(nx , ny , nz );
 
-                data[x + y * size + z * size * size] = n * 0.5f + 0.5f; // map to [0,1]
+                volumeData[x + y * _resolutionX + (z * _resolutionX * _resolutionY)] = n * 0.5f + 0.5f; // map to [0,1]
             }
-
-    if (textureID == 0)
-        glGenTextures(1, &textureID);
-
-    glBindTexture(GL_TEXTURE_3D, textureID);
-
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_RED,
-        size, size, size,
-        0, GL_RED, GL_FLOAT, data.data());
-
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
-
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glBindTexture(GL_TEXTURE_3D, 0);
 }
 
-
-void PerlinNoise3D::Bind(GLuint unit)
+std::vector<float> PerlinNoise3D::getData()
 {
-    glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(GL_TEXTURE_3D, textureID);
+    return volumeData;
 }

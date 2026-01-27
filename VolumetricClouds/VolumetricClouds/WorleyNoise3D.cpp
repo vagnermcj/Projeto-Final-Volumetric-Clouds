@@ -4,10 +4,11 @@
 #include <cmath>
 
 
-WorleyNoise3D::WorleyNoise3D(int resolution, int numCells)
-    : resolution(resolution), numCells(numCells), textureID(0)
+WorleyNoise3D::WorleyNoise3D(int resolutionX, int resolutionY, int resolutionZ,
+    int numCells) : _resolutionX(resolutionX), _resolutionY(resolutionY),
+    _resolutionZ(resolutionZ), numCells(numCells)
 {
-   volumeData.resize(resolution * resolution * resolution);
+   volumeData.resize(_resolutionX * _resolutionY * _resolutionZ);
    featurePoints.resize(numCells * numCells * numCells);
 }
 
@@ -35,38 +36,26 @@ void WorleyNoise3D::Generate()
             }
 
     // 2. Preencher a textura pixel por pixel (resolution)
-    for (int z = 0; z < resolution; z++)
+    for (int z = 0; z < _resolutionZ; ++z)
     {
-        for (int y = 0; y < resolution; y++)
+        for (int y = 0; y < _resolutionY; ++y)
         {
-            for (int x = 0; x < resolution; x++)
+            for (int x = 0; x < _resolutionX; ++x)
             {
-                float u = (float)x / resolution;
-                float v = (float)y / resolution;
-                float w = (float)z / resolution;
+                float u = (float)x / _resolutionX;
+                float v = (float)y / _resolutionY;
+                float w = (float)z / _resolutionZ;
 
                 glm::vec3 p = glm::vec3(u, v, w) * (float)numCells;
 
                 float d = ComputeWorleyValue(p);
 
-                int idx = x + y * resolution + z * resolution * resolution;
+                int idx = x + (y * _resolutionX) + (z * _resolutionX * _resolutionY);
                 volumeData[idx] = d;
             }
         }
     }
 
-    if (textureID == 0) glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_3D, textureID);
-
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
-
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, resolution, resolution, resolution, 0, GL_RED, GL_FLOAT, volumeData.data());
-    glBindTexture(GL_TEXTURE_3D, 0);
 }
 
 float WorleyNoise3D::ComputeWorleyValue(const glm::vec3& p)
@@ -95,7 +84,7 @@ float WorleyNoise3D::ComputeWorleyValue(const glm::vec3& p)
                glm::vec3 offset(dx, dy, dz);
 
   
-                glm::vec3 featurePointInCell = fp - glm::floor(fp); // Pega o 0.2 do 3.2
+                glm::vec3 featurePointInCell = fp - glm::floor(fp);
                 glm::vec3 trueNeighborPoint = glm::vec3(nx, ny, nz) + featurePointInCell;
 
                 float dist = glm::distance(p, trueNeighborPoint);
@@ -105,9 +94,7 @@ float WorleyNoise3D::ComputeWorleyValue(const glm::vec3& p)
     return glm::clamp(minDist, 0.0f, 1.0f);
 }
 
-
-void WorleyNoise3D::Bind(GLuint unit)
+std::vector<float> WorleyNoise3D::getData()
 {
-    glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(GL_TEXTURE_3D, textureID);
+    return volumeData;
 }

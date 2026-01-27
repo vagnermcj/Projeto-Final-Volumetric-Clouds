@@ -75,6 +75,9 @@
     <ClCompile Include="WorleyNoise3D.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CloudTexture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="shaderClass.h">
@@ -107,14 +110,11 @@
     <ClInclude Include="WorleyNoise3D.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CloudTexture.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="default.vert">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
-    <None Include="default.frag">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
     <None Include="RayMarch.frag">
       <Filter>Resource Files\Shaders</Filter>
     </None>

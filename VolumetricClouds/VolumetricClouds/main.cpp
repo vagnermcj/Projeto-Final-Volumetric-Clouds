@@ -15,8 +15,8 @@
 #include"Floor.h"
 #include"Cube.h"
 #include"Camera.h"
-#include"PerlinNoise3D.h"
-#include"WorleyNoise3D.h"
+#include"CloudTexture.h"
+
 
 static GLuint quadID;
 static GLuint noiseTexture3D;
@@ -50,13 +50,9 @@ int main()
 	//Shader shaderProgram("default.vert", "default.frag");
 	Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
 
-	//Perlin Setup
-	PerlinNoise3D perlinNoise;
-	perlinNoise.Generate(64.0f);
-	
-	WorleyNoise3D worleyNoise(64, 10);
-	worleyNoise.Generate();
-
+	//noise Setup
+	CloudTexture shapeTexture(128, 32, 128, glm::ivec3(4, 8, 16));
+	shapeTexture.MakeShape();
 
 
 	//Quad
@@ -102,10 +98,10 @@ int main()
 		// Clean the back buffer and assign the new color to it
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		rayMarchingProgram.Activate();
-		perlinNoise.Bind(0);
+		/*perlinNoise.Bind(0);
 		worleyNoise.Bind(1);
 		rayMarchingProgram.SetUniform("perlinTex", 0);
-		rayMarchingProgram.SetUniform("worleyTex", 1);
+		rayMarchingProgram.SetUniform("worleyTex", 1);*/
 
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();

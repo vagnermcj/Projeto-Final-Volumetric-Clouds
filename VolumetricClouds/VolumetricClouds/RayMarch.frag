@@ -88,10 +88,10 @@ float cloudDensity(vec3 p, float sdf)
 {
     vec3 q = p - windDirection * time * windSpeed;
 
-    float worley = 1.0 - texture(worleyTex, q * 0.05).r;
+    float worley = 1.0 - texture(worleyTex, q).r;
     if(worley <= 0.0) return 0.0;
 
-    float perlin = texture(perlinTex, q * 0.01).r;
+    float perlin = texture(perlinTex, q).r;
 
     float baseCloud = worley * 0.4 + perlin * 0.6; 
  

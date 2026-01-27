@@ -7,19 +7,13 @@
 class PerlinNoise3D
 {
 public:
-    PerlinNoise3D(int size = 64);
-    ~PerlinNoise3D();
-
-    void Generate(float scale);
-    void Bind(GLuint unit);
-
-    GLuint GetID() const { return textureID; }
-    int GetSize() const { return size; }
+    PerlinNoise3D(int resolutionX, int resolutionY, int resolutionZ);
+    void Generate();
+    std::vector<float> getData();
 
 private:
-    int size;
-    GLuint textureID;
-
+    int _resolutionX, _resolutionY, _resolutionZ;
+    std::vector<float> volumeData;
     float Perlin3D(float x, float y, float z);
     float Fade(float t);
     float Grad(int hash, float x, float y, float z);

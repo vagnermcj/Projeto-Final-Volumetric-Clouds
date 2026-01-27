@@ -6,15 +6,14 @@
 class WorleyNoise3D
 {
 public:
-    WorleyNoise3D(int resolution, int numCells);
-    void Generate();                   
-    void Bind(GLuint unit);
-    GLuint GetTextureID() const { return textureID; }
+    WorleyNoise3D(int resolutionX, int resolutionY, int resolutionZ,
+        int numCells);
+    void Generate();
+    std::vector<float> getData();
 
 private:
-    int resolution;                    
+    int _resolutionX, _resolutionY, _resolutionZ;
     int numCells;
-    GLuint textureID;
 
     std::vector<glm::vec3> featurePoints; 
     std::vector<float> volumeData;        
