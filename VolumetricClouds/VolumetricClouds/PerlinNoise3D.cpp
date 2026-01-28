@@ -1,8 +1,8 @@
 #include "PerlinNoise3D.h"
 #include <cmath>
 
-PerlinNoise3D::PerlinNoise3D(int resolutionX, int resolutionY, int resolutionZ): _resolutionX(resolutionX), _resolutionY(resolutionY),
-_resolutionZ(resolutionZ)
+PerlinNoise3D::PerlinNoise3D(int resolutionX, int resolutionY, int resolutionZ, int numCells): _resolutionX(resolutionX), _resolutionY(resolutionY),
+_resolutionZ(resolutionZ), numCells(numCells)
 {
     volumeData.resize(_resolutionX * _resolutionY * _resolutionZ);
     InitPermutation();
@@ -59,44 +59,73 @@ float PerlinNoise3D::Grad(int hash, float x, float y, float z)
     return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
 }
 
-float PerlinNoise3D::Perlin3D(float x, float y, float z)
+float PerlinNoise3D::Perlin3D(float x, float y, float z, int numCells)
 {
-    int X = int(floor(x)) & 255;
-    int Y = int(floor(y)) & 255;
-    int Z = int(floor(z)) & 255;
+    int xi = (int)floor(x);
+    int yi = (int)floor(y);
+    int zi = (int)floor(z);
 
-    x -= floor(x);
-    y -= floor(y);
-    z -= floor(z);
+    float xf = x - floor(x);
+    float yf = y - floor(y);
+    float zf = z - floor(z);
 
-    float u = Fade(x);
-    float v = Fade(y);
-    float w = Fade(z);
+    float u = Fade(xf);
+    float v = Fade(yf);
+    float w = Fade(zf);
 
-    int A = p[X] + Y;
-    int AA = p[A] + Z;
-    int AB = p[A + 1] + Z;
-    int B = p[X + 1] + Y;
-    int BA = p[B] + Z;
-    int BB = p[B + 1] + Z;
+    // X
+    int x0 = xi % numCells; if (x0 < 0) x0 += numCells; 
+    int x1 = (x0 + 1) % numCells;                     
+
+    // Y
+    int y0 = yi % numCells; if (y0 < 0) y0 += numCells;
+    int y1 = (y0 + 1) % numCells;
+
+    // Z
+    int z0 = zi % numCells; if (z0 < 0) z0 += numCells;
+    int z1 = (z0 + 1) % numCells;
+
+    x0 &= 255; x1 &= 255;
+    y0 &= 255; y1 &= 255;
+    z0 &= 255; z1 &= 255;
+
+    int A = p[x0] + y0;
+    int AA = p[A] + z0;
+    int AB = p[A + 1] + z0;
+    int B = p[x1] + y0;
+    int BA = p[B] + z0;
+    int BB = p[B + 1] + z0;
+
+    int px0 = p[x0];
+    int px1 = p[x1];
+
+    int py0_0 = p[px0 + y0];
+    int py1_0 = p[px1 + y0];
+    int py0_1 = p[px0 + y1];
+    int py1_1 = p[px1 + y1];
+
+    int aaa = p[py0_0 + z0];
+    int aba = p[py0_1 + z0];
+    int aab = p[py0_0 + z1];
+    int abb = p[py0_1 + z1];
+
+    int baa = p[py1_0 + z0];
+    int bba = p[py1_1 + z0];
+    int bab = p[py1_0 + z1];
+    int bbb = p[py1_1 + z1];
 
     float res = mixFloat(
         mixFloat(
-            mixFloat(Grad(p[AA], x, y, z),
-                Grad(p[BA], x - 1, y, z), u),
-            mixFloat(Grad(p[AB], x, y - 1, z),
-                Grad(p[BB], x - 1, y - 1, z), u),
+            mixFloat(Grad(aaa, xf, yf, zf), Grad(baa, xf - 1, yf, zf), u),
+            mixFloat(Grad(aba, xf, yf - 1, zf), Grad(bba, xf - 1, yf - 1, zf), u),
             v),
         mixFloat(
-            mixFloat(Grad(p[AA + 1], x, y, z - 1),
-                Grad(p[BA + 1], x - 1, y, z - 1), u),
-            mixFloat(Grad(p[AB + 1], x, y - 1, z - 1),
-                Grad(p[BB + 1], x - 1, y - 1, z - 1), u),
+            mixFloat(Grad(aab, xf, yf, zf - 1), Grad(bab, xf - 1, yf, zf - 1), u),
+            mixFloat(Grad(abb, xf, yf - 1, zf - 1), Grad(bbb, xf - 1, yf - 1, zf - 1), u),
             v),
         w);
 
-
-    return res;
+    return res * 0.5f + 0.5f;
 }
 
 
@@ -111,9 +140,9 @@ void PerlinNoise3D::Generate()
                 float ny = float(y) / _resolutionY;
                 float nz = float(z) / _resolutionZ;
 
-                float n = Perlin3D(nx , ny , nz );
+                float n = Perlin3D(nx * numCells , ny * numCells, nz * numCells, numCells);
 
-                volumeData[x + y * _resolutionX + (z * _resolutionX * _resolutionY)] = n * 0.5f + 0.5f; // map to [0,1]
+                volumeData[x + y * _resolutionX + (z * _resolutionX * _resolutionY)] = n; 
             }
 }
 

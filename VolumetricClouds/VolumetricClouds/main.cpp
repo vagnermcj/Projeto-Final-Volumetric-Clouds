@@ -51,8 +51,12 @@ int main()
 	Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
 
 	//noise Setup
+	CloudTexture shapeDetail(32, 32, 32, glm::ivec3(4, 8, 16));
+	shapeDetail.MakeDetail();
 	CloudTexture shapeTexture(128, 32, 128, glm::ivec3(4, 8, 16));
 	shapeTexture.MakeShape();
+
+	
 
 
 	//Quad
@@ -83,9 +87,9 @@ int main()
 	glm::vec3 windDirection = glm::vec3(1.0f, 0.0f, 1.0f);
 
 	float absorptionCoefficient = 0.05; //Coeficiente de absorção da luz
-	float cloudStepSize = 0.01; // tamanho do passo para nuvens
+	float cloudStepSize = 0.05; // tamanho do passo para nuvens
 	float cloudCoverage = 0.5f; // Cobertura de nuvens
-	int cloudMaxSteps = 248; //Maximo de passos do raymarching
+	int cloudMaxSteps = 500; //Maximo de passos do raymarching
 	int lightMaxSteps = 3;
 	float windSpeed = 0.1f; //Velocidade do vento
 
@@ -98,11 +102,12 @@ int main()
 		// Clean the back buffer and assign the new color to it
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		rayMarchingProgram.Activate();
-		/*perlinNoise.Bind(0);
-		worleyNoise.Bind(1);
-		rayMarchingProgram.SetUniform("perlinTex", 0);
-		rayMarchingProgram.SetUniform("worleyTex", 1);*/
-
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_3D, shapeTexture.getTextureID());
+		rayMarchingProgram.SetUniform("shapeNoise", 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_3D, shapeDetail.getTextureID());
+		rayMarchingProgram.SetUniform("detailNoise", 1);
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();

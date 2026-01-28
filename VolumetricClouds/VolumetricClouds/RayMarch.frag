@@ -17,8 +17,8 @@ uniform float time;
 uniform float windSpeed;
 uniform vec3 windDirection;
 uniform float cloudCoverage;
-uniform sampler3D perlinTex;
-uniform sampler3D worleyTex;
+uniform sampler3D shapeNoise;
+uniform sampler3D detailNoise;
 
 float sphereDensity(vec3 p) {
     float sphere = 1.0 - length(p - vec3(0.0, 1.0, -3.0));
@@ -84,24 +84,41 @@ float HG(float costheta, float g) {
     return (1.0 - g2) / (4.0 * 3.1415 * pow(1.0 + g2 - 2.0 * g * costheta, 1.5));
 }
 
+float getCloudShape(vec3 q)
+{
+    float perlin = texture(shapeNoise, q).r;
+    float worleyLow = 1 - texture(shapeNoise, q).g;
+    float worleyMid = 1 - texture(shapeNoise, q).b;
+    float worleyHigh = 1 - texture(shapeNoise, q).a;
+
+    float baseCloud = perlin + (worleyLow * 0.625 + worleyMid * 0.25 + worleyHigh * 0.125);
+    
+    return baseCloud;
+}
+
+float getCloudDetail(vec3 q)
+{
+    float worleyLow =  texture(detailNoise, q).r;
+    float worleyMid =  texture(detailNoise, q).g;
+    float worleyHigh =  texture(detailNoise, q).b;
+
+    float detailCloud = worleyLow * 0.625 + worleyMid * 0.25 + worleyHigh * 0.125;
+    
+    return detailCloud;
+}
+
+
 float cloudDensity(vec3 p, float sdf)
 {
     vec3 q = p - windDirection * time * windSpeed;
+    
+    float baseCloud = getCloudShape(q);
 
-    float worley = 1.0 - texture(worleyTex, q).r;
-    if(worley <= 0.0) return 0.0;
-
-    float perlin = texture(perlinTex, q).r;
-
-    float baseCloud = worley * 0.4 + perlin * 0.6; 
- 
     float density = remap(baseCloud, cloudCoverage, 1.0, 0.0, 1.0);
 
     if (density <= 0.0) return 0.0;
-
-    float envelope = smoothstep(0.0, -0.5, sdf); 
     
-    density *= envelope;
+    density -= getCloudDetail(q);
 
     return clamp(density, 0.0, 1.0);
 }
@@ -129,7 +146,7 @@ float lightMarching(vec3 pos)
 vec3 rayMarch(vec3 ro, vec3 rd) {
     
     //Variaveis
-    float t = 0.0;
+    float t = 0.1;
     float transmittance = 1.0;
     vec3 lightEnergy = vec3(0.0); 
     float costheta = dot(normalize(lightDirection), rd);
@@ -141,7 +158,7 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
         if (d < 0.001) //Inside the cloud
         {
             float cloudDens = cloudDensity(p, d);
-            if(cloudDens > 0.0) 
+            if(cloudDens > 0.0)
             {
                 float lightTransmittance = lightMarching(p);
                 
@@ -156,7 +173,7 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
         }
         else
         {
-            t += max(d, 0.05);
+            t += min(d, t);
         }
 
         if(transmittance < 0.1) break;
