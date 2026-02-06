@@ -8,6 +8,10 @@
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
+
+
 #include"shaderClass.h"
 #include"VAO.h"
 #include"VBO.h"
@@ -25,6 +29,8 @@ const unsigned int height = 800;
 
 void initScreenQuad();
 void drawScreenQuad();
+unsigned int loadCubemap(std::vector<std::string> faces);
+
 
 int main()
 {
@@ -47,12 +53,19 @@ int main()
 	gladLoadGL();
 	glViewport(0, 0, width, height);
 
-	//Shader shaderProgram("default.vert", "default.frag");
 	Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
 
+
+	//Skybox Setup
+	std::vector<std::string> faces = {
+		"images/right.jpg", "images/left.jpg", "images/top.jpg", "images/bottom.jpg", "images/front.jpg", "images/back.jpg"
+	};
+	unsigned int cubemapTexture = loadCubemap(faces);
+
+
 	//noise Setup
-	CloudTexture shapeDetail(32, 32, 32, glm::ivec3(4, 8, 16));
-	shapeDetail.MakeDetail();
+	CloudTexture detailTexture(32, 32, 32, glm::ivec3(4, 8, 16));
+	detailTexture.MakeDetail();
 	CloudTexture shapeTexture(128, 32, 128, glm::ivec3(4, 8, 16));
 	shapeTexture.MakeShape();
 
@@ -106,8 +119,20 @@ int main()
 		glBindTexture(GL_TEXTURE_3D, shapeTexture.getTextureID());
 		rayMarchingProgram.SetUniform("shapeNoise", 0);
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_3D, shapeDetail.getTextureID());
+		glBindTexture(GL_TEXTURE_3D, detailTexture.getTextureID());
 		rayMarchingProgram.SetUniform("detailNoise", 1);
+		
+		// Bind da Skybox 
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+		rayMarchingProgram.SetUniform("skybox", 3);
+		
+		
+		
+
+
+
+		//ImGUI
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
@@ -219,4 +244,38 @@ void drawScreenQuad()
 	glBindVertexArray(quadID);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
 	glBindVertexArray(0);
+}
+
+// Função para carregar Cubemap
+unsigned int loadCubemap(std::vector<std::string> faces)
+{
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+	int width, height, nrChannels;
+	for (unsigned int i = 0; i < faces.size(); i++)
+	{
+		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+		if (data)
+		{
+			// Nota: Skyboxes geralmente são RGB (sem alpha)
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+				0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
+			);
+			stbi_image_free(data);
+		}
+		else
+		{
+			std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
+			stbi_image_free(data);
+		}
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	return textureID;
 }

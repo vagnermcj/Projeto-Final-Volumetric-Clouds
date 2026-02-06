@@ -1,2 +1,5 @@
-﻿  PerlinNoise3D.cpp
+﻿  main.cpp
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(102,30): warning C4305: 'initializing': truncation from 'double' to 'float'
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(103,22): warning C4305: 'initializing': truncation from 'double' to 'float'
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(168,11): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
   VolumetricClouds.vcxproj -> D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\x64\Debug\VolumetricClouds.exe

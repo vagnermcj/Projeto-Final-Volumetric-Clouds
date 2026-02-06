@@ -19,6 +19,7 @@ uniform vec3 windDirection;
 uniform float cloudCoverage;
 uniform sampler3D shapeNoise;
 uniform sampler3D detailNoise;
+uniform samplerCube skybox;
 
 float sphereDensity(vec3 p) {
     float sphere = 1.0 - length(p - vec3(0.0, 1.0, -3.0));
@@ -133,7 +134,7 @@ float lightMarching(vec3 pos)
         float d = sceneSDF(p);
         if(d < 0.001)
         {
-            totalDensity += max(0.0, cloudDensity(p, d)  * 2.0);
+            totalDensity += max(0.0, cloudDensity(p, d));
         }
     }
 
@@ -151,6 +152,7 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
     vec3 lightEnergy = vec3(0.0); 
     float costheta = dot(normalize(lightDirection), rd);
     float phaseVal = HG(costheta, 0.8);
+    //vec3 skyColor = texture(skybox, rd).rgb;
 
     for (int i = 0; i < cloudMaxSteps; i++) {
         vec3 p = ro + rd * t;
@@ -164,7 +166,7 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
                 
                 vec3 Light = lightColor  * lightTransmittance * cloudDens  * phaseVal;
                 
-                lightEnergy += Light * transmittance;
+                lightEnergy += Light * 0.4 * transmittance;
 
                 transmittance *= exp(-absorptionCoefficient * cloudDens * cloudStepSize);
             }
@@ -180,8 +182,13 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
         if (t > 100.0) break;
     }
 
-   
-    return mix(backgroundColor, lightEnergy, 0.5);
+    vec3 skyColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.0, 0.2, 0.8), max(rd.y, 0.0));
+    // Adiciona um "sol" falso na direção da luz
+    float sun = pow(max(dot(rd, normalize(lightDirection)), 0.0), 500.0);
+    skyColor += vec3(1.0, 0.9, 0.7) * sun;
+
+    vec3 finalColor = lightEnergy + (skyColor * transmittance);
+    return finalColor;
 }
 
 
