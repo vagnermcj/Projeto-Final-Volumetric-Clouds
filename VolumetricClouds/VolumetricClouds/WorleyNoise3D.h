@@ -6,10 +6,9 @@
 class WorleyNoise3D
 {
 public:
-    WorleyNoise3D(int resolutionX, int resolutionY, int resolutionZ,
-        int numCells);
-    void Generate();
-    std::vector<float> getData();
+    WorleyNoise3D(int numCells);
+    std::vector<glm::vec3>& getPoints();
+    void GeneratePoints();
 
 private:
     int _resolutionX, _resolutionY, _resolutionZ;
@@ -18,6 +17,4 @@ private:
     std::vector<glm::vec3> featurePoints; 
     std::vector<float> volumeData;        
 
-    glm::vec3 RandomPointInCell(int x, int y, int z);
-    float ComputeWorleyValue(const glm::vec3& p);
 };

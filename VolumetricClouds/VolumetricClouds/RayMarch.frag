@@ -87,11 +87,13 @@ float HG(float costheta, float g) {
 
 float getCloudShape(vec3 q)
 {
-    float perlin = texture(shapeNoise, q).r;
-    float worleyLow = 1 - texture(shapeNoise, q).g;
-    float worleyMid = 1 - texture(shapeNoise, q).b;
-    float worleyHigh = 1 - texture(shapeNoise, q).a;
-
+    vec4 noiseSample = texture(shapeNoise, q);
+    
+    float perlin = noiseSample.r;
+    float worleyLow = noiseSample.g;  
+    float worleyMid = noiseSample.b; 
+    float worleyHigh = noiseSample.a; 
+    
     float baseCloud = perlin + (worleyLow * 0.625 + worleyMid * 0.25 + worleyHigh * 0.125);
     
     return baseCloud;
@@ -99,12 +101,13 @@ float getCloudShape(vec3 q)
 
 float getCloudDetail(vec3 q)
 {
-    float worleyLow =  texture(detailNoise, q).r;
-    float worleyMid =  texture(detailNoise, q).g;
-    float worleyHigh =  texture(detailNoise, q).b;
+    vec3 detailSample = texture(detailNoise, q).rgb;
+    
+    float worleyLow =  detailSample.r;
+    float worleyMid =  detailSample.g;
+    float worleyHigh = detailSample.b;
 
     float detailCloud = worleyLow * 0.625 + worleyMid * 0.25 + worleyHigh * 0.125;
-    
     return detailCloud;
 }
 

@@ -9,6 +9,7 @@
 #include<iostream>
 #include<cerrno>
 #include<glm/glm.hpp>
+#include <GLFW/glfw3.h>
 
 std::string get_file_contents(const char* filename);
 
@@ -19,6 +20,7 @@ class Shader
 		GLuint ID;
 		// Constructor that build the Shader Program from 2 different shaders
 		Shader(const char* vertexFile, const char* fragmentFile);
+		Shader(const char* computeFile);
 		void SetUniform(const std::string& varname, int x) const;
 		void SetUniform(const std::string& varname, float x) const;
 		void SetUniform(const std::string& varname, const glm::vec3& vet) const;

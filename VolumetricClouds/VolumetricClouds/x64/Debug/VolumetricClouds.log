@@ -1,5 +1,17 @@
-﻿  main.cpp
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(102,30): warning C4305: 'initializing': truncation from 'double' to 'float'
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(103,22): warning C4305: 'initializing': truncation from 'double' to 'float'
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(168,11): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+﻿  Cube.cpp
+  EBO.cpp
+  Floor.cpp
+  PerlinNoise3D.cpp
+  VAO.cpp
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\VAO.cpp(14,63): warning C4244: 'argument': conversion from 'GLsizeiptr' to 'GLsizei', possible loss of data
+  VBO.cpp
+  WorleyNoise3D.cpp
+  main.cpp
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(115,30): warning C4305: 'initializing': truncation from 'double' to 'float'
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(116,22): warning C4305: 'initializing': truncation from 'double' to 'float'
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(212,11): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(320,28): warning C4267: '+=': conversion from 'size_t' to 'int', possible loss of data
+  shaderClass.cpp
+  Generating Code...
+  glad.c
   VolumetricClouds.vcxproj -> D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\x64\Debug\VolumetricClouds.exe

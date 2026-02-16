@@ -19,27 +19,47 @@
 #include"Floor.h"
 #include"Cube.h"
 #include"Camera.h"
-#include"CloudTexture.h"
+#include"WorleyNoise3D.h"
 
 
+// Configurações Globais
 static GLuint quadID;
-static GLuint noiseTexture3D;
-const unsigned int width = 800;
-const unsigned int height = 800;
+const unsigned int SCR_WIDTH = 800; //
+const unsigned int SCR_HEIGHT = 800; //
 
+// IDs de Recursos
+GLuint shapeTexture, detailTexture;
+GLuint ssboShape, ssboDetail;
+GLuint quadVAO;
+
+// Parâmetros de Nuvem (Controlados pelo ImGui)
+glm::ivec3 shapeOctaves(4, 8, 16);
+glm::ivec3 detailOctaves(4, 8, 16);
+float perlinScale = 4.0f;
+bool needsUpdate = true;
+
+// Estrutura para gerenciar pontos no SSBO
+struct NoiseBufferData {
+    std::vector<glm::vec3> allPoints;
+    glm::ivec3 offsets;
+};
+
+// Protótipos
+void initTextures();
 void initScreenQuad();
+void updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut);
+void dispatchNoiseCompute(Shader& computeShader, GLuint targetTex, glm::ivec3 res, glm::ivec3 octaves, glm::ivec3 offsets, bool isShape);
 void drawScreenQuad();
 unsigned int loadCubemap(std::vector<std::string> faces);
-
 
 int main()
 {
 	// Initialize GLFW
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	GLFWwindow* window = glfwCreateWindow(width, height, "Clouds", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Clouds", NULL, NULL);
 	// Error check if the window fails to create
 	if (window == NULL)
 	{
@@ -51,9 +71,11 @@ int main()
 
 	glfwMakeContextCurrent(window);
 	gladLoadGL();
-	glViewport(0, 0, width, height);
 
+	// Shaders
 	Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
+	// Nota: Você precisará adicionar um construtor na sua Shader class para Compute (1 arquivo)
+	Shader noiseCompute("NoiseCompute.glsl");
 
 
 	//Skybox Setup
@@ -62,20 +84,11 @@ int main()
 	};
 	unsigned int cubemapTexture = loadCubemap(faces);
 
-
-	//noise Setup
-	CloudTexture detailTexture(32, 32, 32, glm::ivec3(4, 8, 16));
-	detailTexture.MakeDetail();
-	CloudTexture shapeTexture(128, 32, 128, glm::ivec3(4, 8, 16));
-	shapeTexture.MakeShape();
-
-	
-
-
-	//Quad
+	// Inicializar Recursos
+	initTextures();
 	initScreenQuad();
-
-	
+	glGenBuffers(1, &ssboShape);
+	glGenBuffers(1, &ssboDetail);
 
 	//ImGUI
 	IMGUI_CHECKVERSION();
@@ -85,10 +98,10 @@ int main()
 	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 	ImGui::StyleColorsDark();
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init("#version 410 core");
+	ImGui_ImplOpenGL3_Init("#version 430 core");
 
 	//Camera
-	Camera camera(width, height, glm::vec3(0.0f, 0.0f, 2.0f));
+	Camera camera(SCR_WIDTH, SCR_HEIGHT, glm::vec3(0.0f, 0.0f, 5.0f));
 	
 
 	//Parametros
@@ -107,35 +120,63 @@ int main()
 	float windSpeed = 0.1f; //Velocidade do vento
 
 
-
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
-		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		// Clean the back buffer and assign the new color to it
+		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		// Atualização em Tempo Real (Compute Shader)
+		if (needsUpdate) {
+			glm::ivec3 sOff, dOff;
+			// 1. Atualiza buffers de pontos
+			updateNoiseSSBO(ssboShape, shapeOctaves, sOff);
+			updateNoiseSSBO(ssboDetail, detailOctaves, dOff);
+
+			// 2. Dispara geração da Shape Texture (128x32x128)
+			dispatchNoiseCompute(noiseCompute, shapeTexture, glm::ivec3(128, 32, 128), shapeOctaves, sOff, true);
+
+			// 3. Dispara geração da Detail Texture (32x32x32)
+			dispatchNoiseCompute(noiseCompute, detailTexture, glm::ivec3(32, 32, 32), detailOctaves, dOff, false);
+
+			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+			needsUpdate = false;
+		}
+
 		rayMarchingProgram.Activate();
+
+		// Bind das texturas para o Fragment Shader (RayMarching)
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_3D, shapeTexture.getTextureID());
+		glBindTexture(GL_TEXTURE_3D, shapeTexture);
 		rayMarchingProgram.SetUniform("shapeNoise", 0);
+
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_3D, detailTexture.getTextureID());
+		glBindTexture(GL_TEXTURE_3D, detailTexture);
 		rayMarchingProgram.SetUniform("detailNoise", 1);
-		
-		// Bind da Skybox 
+
 		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
 		rayMarchingProgram.SetUniform("skybox", 3);
 		
+		
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::Begin("Cloud Generation");
+		if (ImGui::DragInt3("Shape Octaves", glm::value_ptr(shapeOctaves), 1, 2, 64)) needsUpdate = true;
+		if (ImGui::DragInt3("Detail Octaves", glm::value_ptr(detailOctaves), 1, 2, 64)) needsUpdate = true;
+		if (ImGui::DragFloat("Perlin Scale", &perlinScale, 0.1f, 1.0f, 20.0f)) needsUpdate = true;
+		ImGui::End();
+
+
 		
 		
 
 
 
 		//ImGUI
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
 
 		ImGui::ShowDemoWindow();
 		
@@ -164,9 +205,10 @@ int main()
 
 		ImGui::End();
 		
+		
 
-		float t = glfwGetTime();
 		//Passing Uniforms
+		float t = glfwGetTime();
 		rayMarchingProgram.SetUniform("lightDirection", lightDirection);
 		rayMarchingProgram.SetUniform("lightColor", lightColor);
 		rayMarchingProgram.SetUniform("lightSteps", lightMaxSteps);
@@ -181,6 +223,8 @@ int main()
 		rayMarchingProgram.SetUniform("time", t);
 		rayMarchingProgram.SetUniform("cloudCoverage", cloudCoverage);
 
+		
+
 		drawScreenQuad();
 		//Camera Update
 		camera.Inputs(window, &io);
@@ -191,6 +235,11 @@ int main()
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+		//int display_w, display_h;
+		//glfwGetFramebufferSize(window, &display_w, &display_h);
+		//glViewport(0, 0, display_w, display_h);
+		
 		
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
@@ -237,6 +286,55 @@ void initScreenQuad()
 
 
 	quadVAO.Unbind();
+}
+
+void initTextures() {
+	auto create3DTex = [](GLuint& id, glm::ivec3 res, GLenum format) {
+		glGenTextures(1, &id);
+		glBindTexture(GL_TEXTURE_3D, id);
+		// Filtros e Wrap
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+		// Aloca espaço na GPU sem dados iniciais (NULL)
+		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, res.x, res.y, res.z, 0, GL_RGBA, GL_FLOAT, NULL);
+		};
+
+	create3DTex(shapeTexture, glm::ivec3(128, 32, 128), GL_RGBA32F);
+	create3DTex(detailTexture, glm::ivec3(32, 32, 32), GL_RGBA32F);
+}
+
+void updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut) {
+	std::vector<glm::vec3> combinedPoints;
+	int currentOffset = 0;
+
+	for (int i = 0; i < 3; i++) {
+		offsetsOut[i] = currentOffset;
+		WorleyNoise3D gen(octaves[i]); //
+		gen.GeneratePoints();
+		auto& pts = gen.getPoints();
+		combinedPoints.insert(combinedPoints.end(), pts.begin(), pts.end());
+		currentOffset += pts.size();
+	}
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, combinedPoints.size() * sizeof(glm::vec3), combinedPoints.data(), GL_STATIC_DRAW);
+}
+
+void dispatchNoiseCompute(Shader& computeShader, GLuint targetTex, glm::ivec3 res, glm::ivec3 octaves, glm::ivec3 offsets, bool isShape) {
+	computeShader.Activate();
+	computeShader.SetUniform("numCells", octaves);
+	computeShader.SetUniform("offsets", offsets);
+	computeShader.SetUniform("isShape", isShape);
+	computeShader.SetUniform("perlinScale", perlinScale);
+
+	glBindImageTexture(0, targetTex, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, (isShape ? ssboShape : ssboDetail));
+
+	// Grupos de 8x8x8 conforme definido no local_size do shader
+	glDispatchCompute(res.x / 8, res.y / 8, res.z / 8);
 }
 
 void drawScreenQuad()

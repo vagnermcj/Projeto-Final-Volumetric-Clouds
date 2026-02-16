@@ -56,6 +56,32 @@ Shader::Shader(const char* vertexFile, const char* fragmentFile)
 	glDeleteShader(fragmentShader);
 
 }
+// Constructor that builds a Shader Program from a single Compute Shader
+Shader::Shader(const char* computeFile)
+{
+	// Read computeFile and store the string
+	std::string computeCode = get_file_contents(computeFile);
+	const char* computeSource = computeCode.c_str();
+
+	// Create Compute Shader Object
+	GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
+	glShaderSource(computeShader, 1, &computeSource, NULL);
+	glCompileShader(computeShader);
+
+	// Check for compilation errors
+	compileErrors(computeShader, "COMPUTE");
+
+	// Create Shader Program Object
+	ID = glCreateProgram();
+	glAttachShader(ID, computeShader);
+	glLinkProgram(ID);
+
+	// Check for linking errors
+	compileErrors(ID, "PROGRAM");
+
+	// Delete the shader object as it's already linked into the program
+	glDeleteShader(computeShader);
+}
 
 // Activates the Shader Program
 void Shader::Activate()
