@@ -3,40 +3,46 @@
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 layout(rgba32f, binding = 0) uniform writeonly image3D outNoiseTex;
 
-// Um único buffer contendo todas as oitavas sequencialmente
 layout(std430, binding = 1) buffer AllPointsBuffer {
-    vec3 allPoints[];
+    vec4 allPoints[];
 };
 
-uniform ivec3 numCells;   // (oitava1, oitava2, oitava3)
-uniform ivec3 offsets;    // (0, oitava1^3, oitava1^3 + oitava2^3)
+uniform ivec3 numCells;   
+uniform ivec3 offsets;    
 uniform bool isShape;
 uniform float perlinScale = 4.0;
 
-// Função Worley acessando o buffer global diretamente
-float worley(vec3 uvw, int cells, int bufferOffset) {
+float worley(vec3 uvw, int cells, int bufferOffset)
+{
     vec3 p = uvw * float(cells);
-    ivec3 cellID = ivec3(floor(p));
-    float minDist = 1.0;
+    ivec3 baseCell = ivec3(floor(p));
+    float minDist = 1000.0;
 
-    for (int z = -1; z <= 1; z++) {
-        for (int y = -1; y <= 1; y++) {
-            for (int x = -1; x <= 1; x++) {
-                ivec3 adjID = cellID + ivec3(x, y, z);
-                ivec3 wrappedID = (adjID % cells + cells) % cells;
-                
-                // Cálculo do índice com o offset da oitava
-                int localIdx = wrappedID.x + cells * (wrappedID.y + wrappedID.z * cells);
-                int finalIdx = bufferOffset + localIdx;
-                
-                vec3 pointInCell = allPoints[finalIdx];
-                vec3 targetPos = vec3(adjID) + pointInCell;
-                float d = distance(p, targetPos);
-                minDist = min(minDist, d);
-            }
-        }
+    for (int z = -1; z <= 1; z++)
+    for (int y = -1; y <= 1; y++)
+    for (int x = -1; x <= 1; x++)
+    {
+        ivec3 neighbor = baseCell + ivec3(x,y,z);
+
+        ivec3 wrapped = ivec3(
+            (neighbor.x % cells + cells) % cells,
+            (neighbor.y % cells + cells) % cells,
+            (neighbor.z % cells + cells) % cells
+        );
+
+        int idx = wrapped.x +
+                  cells * (wrapped.y + wrapped.z * cells);
+
+        vec3 feature = allPoints[bufferOffset + idx].xyz;
+
+        vec3 featurePos = vec3(neighbor) + feature;
+
+        float d = length(p - featurePos);
+        minDist = min(minDist, d);
     }
-    return clamp(1.0 - minDist, 0.0, 1.0);
+
+    float maxDist = sqrt(3.0);
+    return 1.0 - clamp(minDist / maxDist, 0.0, 1.0);
 }
 
 // Implementação básica de Perlin para o canal R

@@ -87,14 +87,14 @@ float HG(float costheta, float g) {
 
 float getCloudShape(vec3 q)
 {
-    vec4 noiseSample = texture(shapeNoise, q);
+    vec4 noiseSample = texture(shapeNoise, q );
     
     float perlin = noiseSample.r;
     float worleyLow = noiseSample.g;  
     float worleyMid = noiseSample.b; 
     float worleyHigh = noiseSample.a; 
     
-    float baseCloud =  worleyLow;
+    float baseCloud =  (worleyLow * 0.625 + worleyMid * 0.25 + worleyHigh * 0.125);
     
     return baseCloud;
 }
@@ -114,7 +114,7 @@ float getCloudDetail(vec3 q)
 
 float cloudDensity(vec3 p, float sdf)
 {
-    vec3 q = p - windDirection * time * windSpeed;
+    vec3 q = (p - cloudPosition) - windDirection * time * windSpeed;
     
     float baseCloud = getCloudShape(q);
 
@@ -124,7 +124,7 @@ float cloudDensity(vec3 p, float sdf)
     
     density -= getCloudDetail(q);
 
-    return clamp(density, 0.0, 1.0);
+    return baseCloud;
 }
 
 //Light Marching
@@ -155,7 +155,6 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
     vec3 lightEnergy = vec3(0.0); 
     float costheta = dot(normalize(lightDirection), rd);
     float phaseVal = HG(costheta, 0.8);
-    //vec3 skyColor = texture(skybox, rd).rgb;
 
     for (int i = 0; i < cloudMaxSteps; i++) {
         vec3 p = ro + rd * t;
@@ -168,7 +167,7 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
                 float lightTransmittance = lightMarching(p);
                 
                 vec3 Light = lightColor  * lightTransmittance * cloudDens  * phaseVal;
-                
+
                 lightEnergy += Light * 0.4 * transmittance;
 
                 transmittance *= exp(-absorptionCoefficient * cloudDens * cloudStepSize);
@@ -184,9 +183,11 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
         if(transmittance < 0.1) break;
         if (t > 100.0) break;
     }
-
+    
+    //vec3 skyColor = texture(skybox, rd).rgb;
     vec3 skyColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.0, 0.2, 0.8), max(rd.y, 0.0));
-    // Adiciona um "sol" falso na direção da luz
+
+    //Sun
     float sun = pow(max(dot(rd, normalize(lightDirection)), 0.0), 500.0);
     skyColor += vec3(1.0, 0.9, 0.7) * sun;
 
@@ -199,18 +200,19 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
 
 void main()
 {
-    // Normaliza UV
     vec2 uv = TexCoord * 2.0 - 1.0;
 
-    // Ray em espaço de clip
     vec4 ray_clip = vec4(uv, -1.0, 1.0);
-
-    // Para world space
     vec4 ray_world = inverse(camMatrix) * ray_clip;
     vec3 rd = normalize(ray_world.xyz / ray_world.w - camPos);
     vec3 ro = camPos;
 
-    vec3 color = rayMarch(ro, rd);
+    //float v = texture(shapeNoise, vec3(TexCoord, 0.5)).g;
+    //FragColor = vec4(vec3(v), 1.0);
 
+    //FragColor = texture(shapeNoise, vec3(TexCoord, 0.5));
+    //FragColor = texture(detailNoise, vec3(TexCoord, 0.5));
+
+    vec3 color = rayMarch(ro, rd);
     FragColor = vec4(color, 1.0);
 }

@@ -30,6 +30,7 @@ class Shader
 		void SetUniform(const std::string& varname, const std::vector<float>& x) const;
 		void SetUniform(const std::string& varname, const std::vector<glm::vec3>& vet) const;
 		void SetUniform(const std::string& varname, const std::vector<glm::vec4>& vet) const;
+		void SetUniform(const std::string& name, const glm::ivec3& value) const;
 		void SetUniform(const std::string& varname, const std::vector<glm::mat4>& mat) const;
 		// Activates the Shader Program
 		void Activate();

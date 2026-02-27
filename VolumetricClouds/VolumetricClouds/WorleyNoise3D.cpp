@@ -1,5 +1,6 @@
 // WorleyNoise3D.cpp - Versão simplificada para Compute Shader
 #include "WorleyNoise3D.h"
+#include <iostream>
 #include <random>
 
 WorleyNoise3D::WorleyNoise3D(int numCells) : numCells(numCells) {
@@ -16,13 +17,13 @@ void WorleyNoise3D::GeneratePoints() {
             for (int x = 0; x < numCells; x++) {
                 int idx = x + numCells * (y + z * numCells);
                 // Ponto aleatório relativo à sua célula (0.0 a 1.0)
-                featurePoints[idx] = glm::vec3(dist(rng), dist(rng), dist(rng));
+                featurePoints[idx] = glm::vec4(dist(rng), dist(rng), dist(rng), 1.0f);
             }
         }
     }
 }
 
 // Retorna o vetor para ser enviado ao SSBO
-std::vector<glm::vec3>& WorleyNoise3D::getPoints() {
+std::vector<glm::vec4>& WorleyNoise3D::getPoints() {
     return featurePoints;
 }

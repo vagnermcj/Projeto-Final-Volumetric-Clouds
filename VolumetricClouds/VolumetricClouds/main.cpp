@@ -113,9 +113,9 @@ int main()
 	glm::vec3 windDirection = glm::vec3(1.0f, 0.0f, 1.0f);
 
 	float absorptionCoefficient = 0.05; //Coeficiente de absorção da luz
-	float cloudStepSize = 0.05; // tamanho do passo para nuvens
+	float cloudStepSize = 0.1; // tamanho do passo para nuvens
 	float cloudCoverage = 0.5f; // Cobertura de nuvens
-	int cloudMaxSteps = 500; //Maximo de passos do raymarching
+	int cloudMaxSteps = 128; //Maximo de passos do raymarching
 	int lightMaxSteps = 3;
 	float windSpeed = 0.1f; //Velocidade do vento
 
@@ -170,13 +170,6 @@ int main()
 		if (ImGui::DragFloat("Perlin Scale", &perlinScale, 0.1f, 1.0f, 20.0f)) needsUpdate = true;
 		ImGui::End();
 
-
-		
-		
-
-
-
-		//ImGUI
 
 		ImGui::ShowDemoWindow();
 		
@@ -307,12 +300,12 @@ void initTextures() {
 }
 
 void updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut) {
-	std::vector<glm::vec3> combinedPoints;
+	std::vector<glm::vec4> combinedPoints;
 	int currentOffset = 0;
 
 	for (int i = 0; i < 3; i++) {
 		offsetsOut[i] = currentOffset;
-		WorleyNoise3D gen(octaves[i]); //
+		WorleyNoise3D gen(octaves[i]); 
 		gen.GeneratePoints();
 		auto& pts = gen.getPoints();
 		combinedPoints.insert(combinedPoints.end(), pts.begin(), pts.end());
@@ -320,8 +313,13 @@ void updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut) {
 	}
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, combinedPoints.size() * sizeof(glm::vec3), combinedPoints.data(), GL_STATIC_DRAW);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, combinedPoints.size() * sizeof(glm::vec4), combinedPoints.data(), GL_STATIC_DRAW);
 }
+
+auto ceilDiv = [](int a, int b) {
+	return (a + b - 1) / b;
+	};
+
 
 void dispatchNoiseCompute(Shader& computeShader, GLuint targetTex, glm::ivec3 res, glm::ivec3 octaves, glm::ivec3 offsets, bool isShape) {
 	computeShader.Activate();
@@ -334,7 +332,12 @@ void dispatchNoiseCompute(Shader& computeShader, GLuint targetTex, glm::ivec3 re
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, (isShape ? ssboShape : ssboDetail));
 
 	// Grupos de 8x8x8 conforme definido no local_size do shader
-	glDispatchCompute(res.x / 8, res.y / 8, res.z / 8);
+	glDispatchCompute(
+		ceilDiv(res.x, 8),
+		ceilDiv(res.y, 8),
+		ceilDiv(res.z, 8)
+	);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
 void drawScreenQuad()

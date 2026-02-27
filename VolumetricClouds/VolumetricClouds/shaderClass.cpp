@@ -170,6 +170,12 @@ void Shader::SetUniform(const std::string& varname, const std::vector<glm::vec3>
 	glUniform3fv(loc, GLsizei(vet.size()), (float*)vet.data());
 }
 
+void Shader::SetUniform(const std::string& name, const glm::ivec3& value) const
+{
+	GLint loc = glGetUniformLocation(ID, name.c_str());
+	glUniform3i(loc, value.x, value.y, value.z);
+}
+
 void Shader::SetUniform(const std::string& varname, const std::vector<glm::vec4>& vet) const
 {
 	GLint loc = glGetUniformLocation(ID, varname.c_str());
