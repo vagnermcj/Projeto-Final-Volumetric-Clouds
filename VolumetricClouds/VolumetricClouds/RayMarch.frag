@@ -94,7 +94,7 @@ float getCloudShape(vec3 q)
     float worleyMid = noiseSample.b; 
     float worleyHigh = noiseSample.a; 
     
-    float baseCloud = perlin + (worleyLow * 0.625 + worleyMid * 0.25 + worleyHigh * 0.125);
+    float baseCloud =  worleyLow;
     
     return baseCloud;
 }
