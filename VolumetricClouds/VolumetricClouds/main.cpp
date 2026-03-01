@@ -50,6 +50,7 @@ void initScreenQuad();
 void updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut);
 void dispatchNoiseCompute(Shader& computeShader, GLuint targetTex, glm::ivec3 res, glm::ivec3 octaves, glm::ivec3 offsets, bool isShape);
 void drawScreenQuad();
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 unsigned int loadCubemap(std::vector<std::string> faces);
 
 int main()
@@ -71,10 +72,10 @@ int main()
 
 	glfwMakeContextCurrent(window);
 	gladLoadGL();
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	// Shaders
 	Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
-	// Nota: Você precisará adicionar um construtor na sua Shader class para Compute (1 arquivo)
 	Shader noiseCompute("NoiseCompute.glsl");
 
 
@@ -112,6 +113,9 @@ int main()
 	glm::vec3 cloudScale = glm::vec3(5.0f, 1.0f, 5.0f);
 	glm::vec3 windDirection = glm::vec3(1.0f, 0.0f, 1.0f);
 
+	float densityMultiplier = 1.5f; // Multiplicador para a densidade das nuvens
+	float detailNoiseWeight = 0.3f; // Peso da Detail Noise na formação das nuvens
+	float scatteringCoefficient = 0.8f; // Coeficiente de espalhamento da luz nas nuvens
 	float absorptionCoefficient = 0.05; //Coeficiente de absorção da luz
 	float cloudStepSize = 0.1; // tamanho do passo para nuvens
 	float cloudCoverage = 0.5f; // Cobertura de nuvens
@@ -183,6 +187,8 @@ int main()
 		ImGui::DragFloat3("Wind Direction (Normalized)", glm::value_ptr(windDirection), 0.01f, -1.0f, 1.0f);
 		ImGui::DragFloat("Wind Speed", &windSpeed, 0.01f, 0.0f);
 		ImGui::DragFloat("Cloud Coverage", &cloudCoverage, 0.01f, 0.0f, 1.0f);
+		ImGui::DragFloat("Density Multiplier", &densityMultiplier, 0.1f, 0.1f, 10.0f);
+		ImGui::DragFloat("detailNoiseWeight", &detailNoiseWeight, 0.01f, 0.0f, 1.0f);
 
 		ImGui::SeparatorText("Ray Marching");
 		ImGui::DragInt("Cloud Max Steps", &cloudMaxSteps, 1, 0, ImGuiSliderFlags_AlwaysClamp);
@@ -193,6 +199,7 @@ int main()
 		ImGui::ColorEdit3("Light Color", glm::value_ptr(lightColor));
 		ImGui::DragFloat("Absorption Coefficient", &absorptionCoefficient, 0.001f, 0.0f, 1.0f);
 		ImGui::DragInt("Light Max Steps", &lightMaxSteps, 1, 0, 5, "%d", ImGuiSliderFlags_AlwaysClamp);
+		ImGui::DragFloat("Scattering Coefficient", &scatteringCoefficient, 0.01f, 0.0f, 1.0f);
 
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
@@ -215,6 +222,9 @@ int main()
 		rayMarchingProgram.SetUniform("windSpeed", windSpeed);
 		rayMarchingProgram.SetUniform("time", t);
 		rayMarchingProgram.SetUniform("cloudCoverage", cloudCoverage);
+		rayMarchingProgram.SetUniform("densityMultiplier", densityMultiplier);
+		rayMarchingProgram.SetUniform("detailNoiseWeight", detailNoiseWeight);
+		rayMarchingProgram.SetUniform("scatteringCoefficient", scatteringCoefficient);
 
 		
 
@@ -379,4 +389,9 @@ unsigned int loadCubemap(std::vector<std::string> faces)
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 	return textureID;
+}
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+	glViewport(0, 0, width, height);
 }

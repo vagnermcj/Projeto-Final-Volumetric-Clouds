@@ -1,4 +1,4 @@
-#version 410 core
+﻿#version 410 core
 out vec4 FragColor;
 in vec2 TexCoord;
 
@@ -46,7 +46,7 @@ float boxDensity(vec3 p)
     vec3 boxSize   = vec3(0.5);
     float d = sdBox(p - boxCenter, boxSize);
 
-    // transforma dist�ncia em densidade
+    // transforma distância em densidade
     float dens = smoothstep(0.0, boxSize.x * 0.5, -d);
     dens = pow(dens, 2.0);
     return clamp(dens, 0.0, 1.0);
@@ -94,7 +94,7 @@ float getCloudShape(vec3 q)
     float worleyMid = noiseSample.b; 
     float worleyHigh = noiseSample.a; 
     
-    float baseCloud =  (worleyLow * 0.625 + worleyMid * 0.25 + worleyHigh * 0.125);
+    float baseCloud =  perlin + (worleyLow * 0.625 + worleyMid * 0.25 + worleyHigh * 0.125);
     
     return baseCloud;
 }
@@ -124,24 +124,28 @@ float cloudDensity(vec3 p, float sdf)
     
     density -= getCloudDetail(q);
 
-    return baseCloud;
+    return density;
 }
 
 //Light Marching
 float lightMarching(vec3 pos)
 {
     float totalDensity = 0.0;
+    float steps = 1.0;
     for(int i = 0; i < lightSteps; i++)
     {
-        vec3 p = pos + lightDirection * float(i) * 2.0;
+        vec3 p = pos + lightDirection * float(i) * steps;
         float d = sceneSDF(p);
+        steps *= 1.5;
         if(d < 0.001)
         {
             totalDensity += max(0.0, cloudDensity(p, d));
         }
+        else
+         break;
     }
 
-    float transmittance = exp(absorptionCoefficient * -totalDensity);
+    float transmittance = exp(-absorptionCoefficient * totalDensity);
     return transmittance;
 }
 
@@ -207,12 +211,20 @@ void main()
     vec3 rd = normalize(ray_world.xyz / ray_world.w - camPos);
     vec3 ro = camPos;
 
-    //float v = texture(shapeNoise, vec3(TexCoord, 0.5)).g;
-    //FragColor = vec4(vec3(v), 1.0);
-
-    //FragColor = texture(shapeNoise, vec3(TexCoord, 0.5));
-    //FragColor = texture(detailNoise, vec3(TexCoord, 0.5));
-
-    vec3 color = rayMarch(ro, rd);
-    FragColor = vec4(color, 1.0);
+    int debug = 2; //0 : Clouds | 1 : Whole Noise | 2: Specific Chanel 
+       
+    switch(debug) {
+        case 0: // Clouds 
+            vec3 color = rayMarch(ro, rd);
+            FragColor = vec4(color, 1.0);
+            return;
+        case 1: // Whole Noise
+             FragColor = texture(shapeNoise, vec3(TexCoord, 0.5));
+            return;
+        case 2: // Specific Chanel 
+            float v = texture(shapeNoise, vec3(TexCoord, 0.5)).r;
+            FragColor = vec4(vec3(v), 1.0);
+            return;
+    }
+    
 }
