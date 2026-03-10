@@ -54,6 +54,8 @@
     <None Include="NoiseCompute.glsl" />
     <None Include="RayMarch.frag" />
     <None Include="RayMarch.vert" />
+    <None Include="SlicePreview.frag" />
+    <None Include="SlicePreview.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

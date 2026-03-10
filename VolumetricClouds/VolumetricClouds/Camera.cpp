@@ -62,11 +62,11 @@ void Camera::Inputs(GLFWwindow* window, ImGuiIO* io)
 	}
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
 	{
-		cameraSpeed = 0.4f;
+		cameraSpeed = speed * 2.0;
 	}
 	else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_RELEASE)
 	{
-		cameraSpeed = 0.1f;
+		cameraSpeed = speed;
 	}
 
 

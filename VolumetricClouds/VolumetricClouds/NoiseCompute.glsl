@@ -42,7 +42,7 @@ float worley(vec3 uvw, int cells, int bufferOffset)
 
     float maxDist = sqrt(3.0);
     // Invertido: 1 perto do ponto, 0 longe → billowing
-    return 1.0 - clamp(minDist / maxDist, 0.0, 1.0);
+    return  clamp(minDist / maxDist, 0.0, 1.0);
 }
 
 // ─────────────────────────────────────────────
@@ -51,46 +51,51 @@ float worley(vec3 uvw, int cells, int bufferOffset)
 // ─────────────────────────────────────────────
 
 // Vetores de gradiente pseudo-aleatórios
-vec3 gradHash(vec3 p)
+vec3 gradHash(vec3 p, float period)
 {
+    // Garante que p=0 e p=period geram o mesmo gradiente
+    p = mod(p, period);
     p = vec3(dot(p, vec3(127.1, 311.7,  74.7)),
              dot(p, vec3(269.5, 183.3, 246.1)),
              dot(p, vec3(113.5, 271.9, 124.6)));
     return normalize(-1.0 + 2.0 * fract(sin(p) * 43758.5453123));
 }
 
-float perlin(vec3 p)
+float perlin(vec3 p, float period)
 {
     vec3 i = floor(p);
     vec3 f = fract(p);
-
     vec3 u = f * f * (3.0 - 2.0 * f);
 
-    float v000 = dot(gradHash(i + vec3(0,0,0)), f - vec3(0,0,0));
-    float v100 = dot(gradHash(i + vec3(1,0,0)), f - vec3(1,0,0));
-    float v010 = dot(gradHash(i + vec3(0,1,0)), f - vec3(0,1,0));
-    float v110 = dot(gradHash(i + vec3(1,1,0)), f - vec3(1,1,0));
-    float v001 = dot(gradHash(i + vec3(0,0,1)), f - vec3(0,0,1));
-    float v101 = dot(gradHash(i + vec3(1,0,1)), f - vec3(1,0,1));
-    float v011 = dot(gradHash(i + vec3(0,1,1)), f - vec3(0,1,1));
-    float v111 = dot(gradHash(i + vec3(1,1,1)), f - vec3(1,1,1));
+    // Passa o período para cada canto — mod garante que i+1 wrapa para 0
+    float v000 = dot(gradHash(i + vec3(0,0,0), period), f - vec3(0,0,0));
+    float v100 = dot(gradHash(i + vec3(1,0,0), period), f - vec3(1,0,0));
+    float v010 = dot(gradHash(i + vec3(0,1,0), period), f - vec3(0,1,0));
+    float v110 = dot(gradHash(i + vec3(1,1,0), period), f - vec3(1,1,0));
+    float v001 = dot(gradHash(i + vec3(0,0,1), period), f - vec3(0,0,1));
+    float v101 = dot(gradHash(i + vec3(1,0,1), period), f - vec3(1,0,1));
+    float v011 = dot(gradHash(i + vec3(0,1,1), period), f - vec3(0,1,1));
+    float v111 = dot(gradHash(i + vec3(1,1,1), period), f - vec3(1,1,1));
 
     float result = mix(
         mix(mix(v000, v100, u.x), mix(v010, v110, u.x), u.y),
         mix(mix(v001, v101, u.x), mix(v011, v111, u.x), u.y),
         u.z
     );
-
     return result * 0.5 + 0.5;
 }
 
 float perlinFBM(vec3 p)
 {
-    float value = 0.0;
+    float value     = 0.0;
     float amplitude = 0.5;
     float frequency = 1.0;
+
     for (int o = 0; o < 4; o++) {
-        value     += perlin(p * frequency) * amplitude;
+        // O período precisa ser inteiro e igual à frequência
+        // para garantir continuidade em cada oitava
+        float period = floor(perlinScale * frequency);
+        value     += perlin(p * frequency * perlinScale, period) * amplitude;
         frequency *= 2.0;
         amplitude *= 0.5;
     }
