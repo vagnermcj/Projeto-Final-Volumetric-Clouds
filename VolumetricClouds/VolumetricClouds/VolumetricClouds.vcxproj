@@ -55,7 +55,8 @@
     <None Include="RayMarch.frag" />
     <None Include="RayMarch.vert" />
     <None Include="SlicePreview.frag" />
-    <None Include="SlicePreview.vert" />
+    <None Include="SlicePreview2D.frag" />
+    <None Include="WeatherCompute.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

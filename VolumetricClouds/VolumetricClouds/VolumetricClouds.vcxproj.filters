@@ -115,11 +115,16 @@
     <None Include="RayMarch.vert">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="NoiseCompute.glsl" />
     <None Include="SlicePreview.frag">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="SlicePreview.vert">
+    <None Include="SlicePreview2D.frag">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="WeatherCompute.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="NoiseCompute.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
   </ItemGroup>

@@ -1,4 +1,4 @@
-#include <iostream>
+ï»¿#include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -7,6 +7,8 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
+#include <random>
+#include <chrono>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
@@ -22,22 +24,23 @@
 #include"WorleyNoise3D.h"
 
 
-// Configurações Globais
+// Configuracoes Globais
 static GLuint quadID;
 const unsigned int SCR_WIDTH = 800; //
 const unsigned int SCR_HEIGHT = 800; //
 
 // IDs de Recursos
-GLuint shapeTexture, detailTexture;
-GLuint ssboShape, ssboDetail;
+GLuint shapeTexture, detailTexture, weatherTexture;
+GLuint ssboShape, ssboDetail, ssboAltitude;
 GLuint quadVAO;
 
 // Preview de Textura
 GLuint previewFBO;
-GLuint previewTex;  // textura 2D resultado
-Shader* sliceShader;
+GLuint previewTex;
+Shader* sliceShader;  
+Shader* slice2DShader; //Weather Map 
 
-// Parâmetros de Nuvem (Controlados pelo ImGui)
+// Parametros de Nuvem
 glm::ivec3 shapeOctaves(4, 8, 16);
 glm::ivec3 detailOctaves(4, 8, 16);
 float perlinScale = 1.0f;
@@ -45,19 +48,29 @@ bool needsUpdate = true;
 
 // Estrutura para gerenciar pontos no SSBO
 struct NoiseBufferData {
-    std::vector<glm::vec3> allPoints;
-    glm::ivec3 offsets;
+	std::vector<glm::vec3> allPoints;
+	glm::ivec3 offsets;
 };
 
-// Protótipos
+//Estrutura para ponto no altitude map
+struct AltitudePoint {
+	glm::vec2 position;
+	float     value;
+	float     radius;  // tamanho da mancha em UV [0,1]
+};
+
+// Prototipos
 void initTextures();
 void initTexturePreview();
 void renderTexturePreview(Shader& sliceShader, GLuint tex3D, float slice, int channel);
 void initScreenQuad();
 void updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut);
 void dispatchNoiseCompute(Shader& computeShader, GLuint targetTex, glm::ivec3 res, glm::ivec3 octaves, glm::ivec3 offsets, bool isShape);
+void dispatchWeatherCompute(Shader& computeShader, GLuint targetTex);
+void renderTexturePreview2D(Shader& shader, GLuint tex2D, int channel);
 void drawScreenQuad();
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void generateAltitudePoints(int count,float minR, float maxR);
 unsigned int loadCubemap(std::vector<std::string> faces);
 
 int main()
@@ -85,13 +98,8 @@ int main()
 	Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
 	Shader noiseCompute("NoiseCompute.glsl");
 	sliceShader = new Shader("RayMarch.vert", "SlicePreview.frag");
-
-
-	//Skybox Setup
-	std::vector<std::string> faces = {
-		"images/right.jpg", "images/left.jpg", "images/top.jpg", "images/bottom.jpg", "images/front.jpg", "images/back.jpg"
-	};
-	unsigned int cubemapTexture = loadCubemap(faces);
+	slice2DShader = new Shader("RayMarch.vert", "SlicePreview2D.frag");
+	Shader weatherCompute("WeatherCompute.glsl");
 
 	// Inicializar Recursos
 	initTextures();
@@ -99,6 +107,14 @@ int main()
 	initScreenQuad();
 	glGenBuffers(1, &ssboShape);
 	glGenBuffers(1, &ssboDetail);
+
+	//Skybox Setup
+	std::vector<std::string> faces = {
+		"images/right.jpg", "images/left.jpg", "images/top.jpg", "images/bottom.jpg", "images/front.jpg", "images/back.jpg"
+	};
+	unsigned int cubemapTexture = loadCubemap(faces);
+
+	
 
 	//ImGUI
 	IMGUI_CHECKVERSION();
@@ -112,54 +128,74 @@ int main()
 
 	//Camera
 	Camera camera(SCR_WIDTH, SCR_HEIGHT, glm::vec3(0.0f, 0.0f, 5.0f));
-	
+
 
 	//Parametros
 	glm::vec3 lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
 	glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-	glm::vec3 backgroundColor = glm::vec3(0.85, 0.9, 1.0); // cor do céu
+	glm::vec3 backgroundColor = glm::vec3(0.85, 0.9, 1.0);
 	glm::vec3 cloudPosition = glm::vec3(1.0f, 0.0f, -2.0f);
-	glm::vec3 cloudScale = glm::vec3(5.0f, 1.0f, 5.0f);
+	glm::vec3 cloudScale = glm::vec3(30.0f, 1.0f, 5.0f);
 	glm::vec3 windDirection = glm::vec3(1.0f, 0.0f, 1.0f);
 	glm::vec4 shapeNoiseWeights = glm::vec4(1.0f, 0.625f, 0.25f, 0.125f);
 
 	float cloudMinCoverage = 0.5f;
-	float weatherScale = 50.0f; // Peso da Detail Noise na formação das nuvens
-	float scatteringCoefficient = 0.8f; // Coeficiente de espalhamento da luz nas nuvens
-	float absorptionCoefficient = 0.05; //Coeficiente de absorção da luz
-	float cloudStepSize = 0.5; // tamanho do passo para nuvens
-	float cloudCoverage = 0.5f; // Cobertura de nuvens
-	int cloudMaxSteps = 128; //Maximo de passos do raymarching
+	float weatherScale = 50.0f; 
+	float scatteringCoefficient = 0.8f; 
+	float absorptionCoefficient = 0.05; 
+	float cloudStepSize = 0.5;
+	float cloudCoverage = 0.5f; 
+	int cloudMaxSteps = 128; 
 	int lightMaxSteps = 3;
-	float windSpeed = 0.1f; //Velocidade do vento
+	float windSpeed = 0.01f;
 	float atmosphereStart = 100.0f;
-	float atmosphereHeight = 30.0f;
-	float densityOffset = 0.0f;
+	float atmosphereHeight = 100.0f;
+
+	// Parametros weather map
+	float coverageScale = 3.0f;
+	float heightScale = 1.5f;
+	float altitudeScale = 0.8f;
+	float coverageMin = 0.4f;
+	float coverageMax = 0.7f;
+	int altitudePointCount = 3;
+	float maxCloudHeight = 10.0f;
+	float maxCloudAltitude = 80.0f;
+	float altitudeBlobMinRadius = 0.05f;
+	float altitudeBlobMaxRadius = 0.15f;
 
 	static float  previewSlice = 0.5f;
 	static int    previewChannel = 0;
-	static int    previewTarget = 0;
+	static int    previewTarget = 0; // 0=Shape, 1=Detail, 2=Weather
 
+	
+	generateAltitudePoints(altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius);
 
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
-		// Clean the back buffer and assign the new color to it
 		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// Atualização em Tempo Real (Compute Shader)
+		//Texturas do compute shader
 		if (needsUpdate) {
 			glm::ivec3 sOff, dOff;
-			// 1. Atualiza buffers de pontos
 			updateNoiseSSBO(ssboShape, shapeOctaves, sOff);
 			updateNoiseSSBO(ssboDetail, detailOctaves, dOff);
 
-			// 2. Dispara geração da Shape Texture (128x32x128)
 			dispatchNoiseCompute(noiseCompute, shapeTexture, glm::ivec3(128, 32, 128), shapeOctaves, sOff, true);
 
-			// 3. Dispara geração da Detail Texture (32x32x32)
 			dispatchNoiseCompute(noiseCompute, detailTexture, glm::ivec3(32, 32, 32), detailOctaves, dOff, false);
+
+			//Gerar Weather Map
+			weatherCompute.Activate();
+			weatherCompute.SetUniform("coverageScale", coverageScale);
+			weatherCompute.SetUniform("heightScale", heightScale);
+			weatherCompute.SetUniform("altitudeScale", altitudeScale);
+			weatherCompute.SetUniform("coverageMin", coverageMin);
+			weatherCompute.SetUniform("coverageMax", coverageMax);
+			weatherCompute.SetUniform("altitudePointCount", altitudePointCount);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssboAltitude);
+			dispatchWeatherCompute(weatherCompute, weatherTexture);
 
 			glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 			needsUpdate = false;
@@ -170,32 +206,68 @@ int main()
 		ImGui::NewFrame();
 
 		ImGui::Begin("Cloud Generation");
-		if (ImGui::DragInt3("Shape Octaves", glm::value_ptr(shapeOctaves), 1, 2, 64)) needsUpdate = true;
-		if (ImGui::DragInt3("Detail Octaves", glm::value_ptr(detailOctaves), 1, 2, 64)) needsUpdate = true;
-		if (ImGui::DragFloat("Perlin Scale", &perlinScale, 0.1f, 1.0f, 20.0f)) needsUpdate = true;
-		ImGui::DragFloat4("Shape Weights", glm::value_ptr(shapeNoiseWeights), 0.01f, 0.0f, 2.0f);
-		ImGui::DragFloat("Density Offset", &densityOffset, 0.01f, -1.0f, 1.0f);
+		
+		if (previewTarget == 2)
+			renderTexturePreview2D(*slice2DShader, weatherTexture, previewChannel);
+		else
+			renderTexturePreview(*sliceShader,
+				previewTarget == 0 ? shapeTexture : detailTexture,
+				previewSlice, previewChannel);
 
+		ImGui::SeparatorText("Visualization");
 
-		renderTexturePreview(*sliceShader,
-			previewTarget == 0 ? shapeTexture : detailTexture,
-			previewSlice, previewChannel);
-
-		ImGui::SliderFloat("Slice Z", &previewSlice, 0.0f, 1.0f);
 		ImGui::RadioButton("Shape", &previewTarget, 0);
 		ImGui::SameLine();
 		ImGui::RadioButton("Detail", &previewTarget, 1);
+		ImGui::SameLine();
+		ImGui::RadioButton("Weather", &previewTarget, 2);
 		ImGui::RadioButton("RGBA", &previewChannel, 0); ImGui::SameLine();
 		ImGui::RadioButton("R", &previewChannel, 1); ImGui::SameLine();
 		ImGui::RadioButton("G", &previewChannel, 2); ImGui::SameLine();
-		ImGui::RadioButton("B", &previewChannel, 3); ImGui::SameLine();
-		ImGui::RadioButton("A", &previewChannel, 4);
-
+		ImGui::RadioButton("B", &previewChannel, 3);
+		if (previewTarget == 0)
+		{
+			ImGui::SameLine();
+			ImGui::RadioButton("A", &previewChannel, 4);
+		}
 		// Agora sim passa a textura 2D renderizada
 		ImGui::Image((ImTextureID)(intptr_t)previewTex, ImVec2(256, 256),
-			ImVec2(0, 1),   // uv_min: começa do fundo
+			ImVec2(0, 1),
 			ImVec2(1, 0));
 
+
+		ImGui::SeparatorText("Configuration");
+		switch (previewTarget) {
+			case 0: // Shape
+				ImGui::SliderFloat("Slice Z", &previewSlice, 0.0f, 1.0f);
+				if (ImGui::DragInt3("Shape Octaves", glm::value_ptr(shapeOctaves), 1, 2, 64)) needsUpdate = true;
+				if (ImGui::DragFloat("Perlin Scale", &perlinScale, 0.1f, 1.0f, 20.0f)) needsUpdate = true;
+				ImGui::DragFloat4("Shape Weights", glm::value_ptr(shapeNoiseWeights), 0.01f, 0.0f, 2.0f);
+				break;
+			case 1: //Detail
+				ImGui::SliderFloat("Slice Z", &previewSlice, 0.0f, 1.0f);
+				if (ImGui::DragInt3("Detail Octaves", glm::value_ptr(detailOctaves), 1, 2, 64)) needsUpdate = true;
+				break;
+			case 2: //Weather
+				if (ImGui::DragFloat("Coverage Scale", &coverageScale, 1.0f, 1.0f, 16.0f)) needsUpdate = true;
+				if (ImGui::DragFloat("Height Scale", &heightScale, 1.0f, 1.0f, 16.0f)) needsUpdate = true;
+				if (ImGui::DragFloat("Altitude Scale", &altitudeScale, 1.0f, 1.0f, 16.0f)) needsUpdate = true;
+				if (ImGui::DragFloat("Coverage Min", &coverageMin, 0.01f, 0.0f, 1.0f)) needsUpdate = true;
+				if (ImGui::DragFloat("Coverage Max", &coverageMax, 0.01f, 0.0f, 1.0f)) needsUpdate = true;
+				ImGui::DragFloat("Blob Min Radius", &altitudeBlobMinRadius, 0.01f, 0.01f, 0.5f);
+				ImGui::DragFloat("Blob Max Radius", &altitudeBlobMaxRadius, 0.01f, 0.01f, 0.5f);
+				ImGui::SeparatorText("Altitude Blobs");
+				if (ImGui::DragInt("Altitude Point Count", &altitudePointCount, 1, 1, 64)) {
+					generateAltitudePoints(altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius);
+					needsUpdate = true;
+				}
+				if (ImGui::Button("Randomize Altitude")) {
+					generateAltitudePoints(altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius);
+					needsUpdate = true;
+				}
+				break;
+		}
+		
 		ImGui::End();
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -215,11 +287,15 @@ int main()
 		glBindTexture(GL_TEXTURE_3D, detailTexture);
 		rayMarchingProgram.SetUniform("detailNoise", 1);
 
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, weatherTexture);
+		rayMarchingProgram.SetUniform("weatherMap", 2);
+
 		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
 		rayMarchingProgram.SetUniform("skybox", 3);
-		
-		  
+
+
 		ImGui::Begin("Volumetric Clouds");
 
 		ImGui::SeparatorText("General Setup");
@@ -227,7 +303,7 @@ int main()
 		ImGui::DragFloat3("Cloud Position", glm::value_ptr(cloudPosition), 0.1f);
 		ImGui::DragFloat3("Cloud Scale", glm::value_ptr(cloudScale), 0.1f);
 		ImGui::DragFloat3("Wind Direction (Normalized)", glm::value_ptr(windDirection), 0.01f, -1.0f, 1.0f);
-		ImGui::DragFloat("Wind Speed", &windSpeed, 0.005f, 0.0f);
+		ImGui::DragFloat("Wind Speed", &windSpeed, 0.01f);
 
 		ImGui::SeparatorText("Atmosphere");
 
@@ -236,6 +312,9 @@ int main()
 		ImGui::DragFloat("Cloud Coverage", &cloudCoverage, 0.01f, 0.0f, 1.0f);
 		ImGui::DragFloat("Cloud Min Value", &cloudMinCoverage, 0.005f, 0.0f, 1.0f);
 		ImGui::DragFloat("Weather Scale", &weatherScale, 1.0f, 0.1f);
+		ImGui::DragFloat("Max Cloud Height", &maxCloudHeight, 0.5f, 0.1f, atmosphereHeight);
+		ImGui::DragFloat("Max Cloud Altitude", &maxCloudAltitude, 0.5f, 0.0f, atmosphereHeight);
+
 
 		ImGui::SeparatorText("Ray Marching");
 		ImGui::DragInt("Cloud Max Steps", &cloudMaxSteps, 1, 0, ImGuiSliderFlags_AlwaysClamp);
@@ -251,8 +330,8 @@ int main()
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
 		ImGui::End();
-		
-		
+
+
 
 		//Passing Uniforms
 		float t = glfwGetTime();
@@ -274,9 +353,9 @@ int main()
 		rayMarchingProgram.SetUniform("scatteringCoefficient", scatteringCoefficient);
 		rayMarchingProgram.SetUniform("atmosphereStart", atmosphereStart);
 		rayMarchingProgram.SetUniform("atmosphereHeight", atmosphereHeight);
-		rayMarchingProgram.SetUniform("densityOffset", densityOffset);
 		rayMarchingProgram.SetUniform("shapeNoiseWeights", shapeNoiseWeights);
-		
+		rayMarchingProgram.SetUniform("maxCloudHeight",   maxCloudHeight);
+		rayMarchingProgram.SetUniform("maxCloudAltitude", maxCloudAltitude);
 
 		drawScreenQuad();
 		//Camera Update
@@ -284,7 +363,7 @@ int main()
 		camera.updateMatrix(45.0f, 0.1f, 100.0f); //Projection * view
 		camera.Matrix(rayMarchingProgram, "camMatrix");
 		glUniform3f(glGetUniformLocation(rayMarchingProgram.ID, "camPos"), camera.Position.x, camera.Position.y, camera.Position.z);
-	
+
 
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -292,8 +371,8 @@ int main()
 		//int display_w, display_h;
 		//glfwGetFramebufferSize(window, &display_w, &display_h);
 		//glViewport(0, 0, display_w, display_h);
-		
-		
+
+
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
 			GLFWwindow* backup_current_context = glfwGetCurrentContext();
@@ -351,12 +430,21 @@ void initTextures() {
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
-		// Aloca espaço na GPU sem dados iniciais (NULL)
+		// Aloca espaï¿½o na GPU sem dados iniciais (NULL)
 		glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA32F, res.x, res.y, res.z, 0, GL_RGBA, GL_FLOAT, NULL);
 		};
 
 	create3DTex(shapeTexture, glm::ivec3(128, 32, 128), GL_RGBA32F);
 	create3DTex(detailTexture, glm::ivec3(32, 32, 32), GL_RGBA32F);
+
+	// Weather Map
+	glGenTextures(1, &weatherTexture);
+	glBindTexture(GL_TEXTURE_2D, weatherTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 512, 512, 0, GL_RGBA, GL_FLOAT, NULL);
 }
 
 void initTexturePreview() {
@@ -385,11 +473,10 @@ void renderTexturePreview(Shader& sliceShader, GLuint tex3D, float slice, int ch
 	sliceShader.SetUniform("slice", slice);
 	sliceShader.SetUniform("channel", channel);
 
-	// Reutiliza seu próprio quad
 	drawScreenQuad();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	// Restaura viewport
+
 	int w, h;
 	glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
 	glViewport(0, 0, w, h);
@@ -401,7 +488,7 @@ void updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut) {
 
 	for (int i = 0; i < 3; i++) {
 		offsetsOut[i] = currentOffset;
-		WorleyNoise3D gen(octaves[i]); 
+		WorleyNoise3D gen(octaves[i]);
 		gen.GeneratePoints();
 		auto& pts = gen.getPoints();
 		combinedPoints.insert(combinedPoints.end(), pts.begin(), pts.end());
@@ -436,6 +523,34 @@ void dispatchNoiseCompute(Shader& computeShader, GLuint targetTex, glm::ivec3 re
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
+void dispatchWeatherCompute(Shader& computeShader, GLuint targetTex)
+{
+	computeShader.Activate();
+	glBindImageTexture(0, targetTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+	glDispatchCompute(ceilDiv(512, 8), ceilDiv(512, 8), 1);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
+}
+
+// Preview de textura 2D (weather map) -- nao precisa de slice
+void renderTexturePreview2D(Shader& shader, GLuint tex2D, int channel)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, previewFBO);
+	glViewport(0, 0, 256, 256);
+
+	shader.Activate();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex2D);
+	shader.SetUniform("noiseTex", 0);
+	shader.SetUniform("channel", channel);
+
+	drawScreenQuad();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	int w, h;
+	glfwGetFramebufferSize(glfwGetCurrentContext(), &w, &h);
+	glViewport(0, 0, w, h);
+}
+
 void drawScreenQuad()
 {
 	glBindVertexArray(quadID);
@@ -443,7 +558,27 @@ void drawScreenQuad()
 	glBindVertexArray(0);
 }
 
-// Função para carregar Cubemap
+void generateAltitudePoints(int count, float minR, float maxR) {
+	std::vector<AltitudePoint> points(count);
+	std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> posDist(0.0f, 1.0f);
+	std::uniform_real_distribution<float> radDist(minR, maxR);
+
+	for (auto& p : points) {
+		p.position = glm::vec2(dist(rng), dist(rng));
+		p.value = dist(rng);
+		p.radius = radDist(rng); // distribuiÃ§Ã£o separada para raio
+	}
+
+	glGenBuffers(1, &ssboAltitude);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboAltitude);
+	glBufferData(GL_SHADER_STORAGE_BUFFER,
+		points.size() * sizeof(AltitudePoint),
+		points.data(), GL_STATIC_DRAW);
+}
+
+
 unsigned int loadCubemap(std::vector<std::string> faces)
 {
 	unsigned int textureID;
@@ -456,7 +591,6 @@ unsigned int loadCubemap(std::vector<std::string> faces)
 		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
 		if (data)
 		{
-			// Nota: Skyboxes geralmente são RGB (sem alpha)
 			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
 				0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data
 			);

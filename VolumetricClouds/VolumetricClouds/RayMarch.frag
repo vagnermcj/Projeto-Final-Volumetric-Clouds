@@ -20,50 +20,14 @@ uniform float weatherScale;
 uniform float atmosphereStart;
 uniform float atmosphereHeight;
 uniform vec4 shapeNoiseWeights;
-uniform float densityOffset;
 uniform vec3 windDirection;
 uniform float cloudCoverage;
 uniform sampler3D shapeNoise;
 uniform sampler3D detailNoise;
+uniform sampler2D weatherMap;
 uniform samplerCube skybox;
-
-float sphereDensity(vec3 p) {
-    float sphere = 1.0 - length(p - vec3(0.0, 1.0, -3.0));
-    return clamp(sphere, 0.0, 1.0);
-}
-
-float sdBox( vec3 p, vec3 b )
-{
-  vec3 q = abs(p) - b;
-  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
-}
-
-float sdEllipsoid( vec3 p, vec3 r )
-{
-  float k0 = length(p/r);
-  float k1 = length(p/(r*r));
-  return k0*(k0-1.0)/k1;
-}
-
-float boxDensity(vec3 p)
-{
-    vec3 boxCenter = vec3(2.0, 0.5, -4.0);
-    vec3 boxSize   = vec3(0.5);
-    float d = sdBox(p - boxCenter, boxSize);
-
-    // transforma distância em densidade
-    float dens = smoothstep(0.0, boxSize.x * 0.5, -d);
-    dens = pow(dens, 2.0);
-    return clamp(dens, 0.0, 1.0);
-}
-
-float sphereSDF(vec3 p, float r) {
-    return length(p) - r;
-}
-
-float planeSDF(vec3 p) {
-    return p.y;
-}
+uniform float maxCloudHeight;
+uniform float maxCloudAltitude;
 
 float sceneSDF(vec3 p) {
     vec3 boxMin = vec3(-cloudScale.x, atmosphereStart, -cloudScale.x); // Box lower bounds
@@ -93,31 +57,33 @@ float getCloudShape(vec3 q)
                              dot(shapeNoiseWeights, vec4(1.0));
 
     // Soma ponderada dos 4 canais
-    return dot(noise, normalizedWeights);
+    return 1.0 - dot(noise, normalizedWeights);
 }
 
 float getCloudDetail(vec3 q)
 {
     vec3 detailSample = texture(detailNoise, q).rgb;
-    float detailCloud = detailSample.r * 0.625 + detailSample.g * 0.25 + detailSample.b * 0.125; 
+    float detailCloud = 1.0 - (detailSample.r * 0.625 + detailSample.g * 0.25 + detailSample.b * 0.125); 
 
     return detailCloud;
 }
 
 float HeightSignal(vec3 p)
 {   
-    vec3 texPos = (vec3(p.x, 0.5, p.z) / weatherScale) - windDirection * time * windSpeed;
-    vec3 weather = texture(shapeNoise, texPos).rgb;
+    vec2 texPos = (vec2(p.x, p.z) / weatherScale) - vec2(windDirection.x, windDirection.z) * time * windSpeed;
+    vec3 weather = texture(weatherMap, texPos).rgb;
 
-    float height   = weather.r;
-    float altitude = 1.0 - weather.g;
+    float height   = weather.r; // quão ALTA é a nuvem (tamanho)
+    float altitude = weather.b; // onde ela COMEÇA (offset do fundo)
 
     if (height < 0.001) return 0.0;
 
-    height   = 5.0f;
-    altitude = remap(altitude, 0.0, 1.0, 0.0, atmosphereHeight * 0.8);
+    height = height * maxCloudHeight;
 
-    float x             = p.y - atmosphereStart;
+    altitude = altitude * maxCloudAltitude;
+
+    float x = p.y - atmosphereStart;
+
     float oneOverHeight = 1.0 / (height * height);
     float heightSignal  = (x - altitude) * (x - altitude - height) * (oneOverHeight * -4.0);
 
@@ -133,19 +99,18 @@ float cloudDensity(vec3 p)
         //d e n si t y −= g e tCl o u dD e t ail ( p o s i t i o n )
         //d e n si t y ∗= Hei gh tG r adien t ( weather . gb , p o s i t i o n )
 
-    vec3 texPos = (vec3(p.x, 0.5, p.z) / weatherScale) - windDirection * time * windSpeed;
-    float density = texture(shapeNoise, texPos).r; //Weather Map Coverage
+    vec2 texPos = (vec2(p.x, p.z) / weatherScale) - vec2(windDirection.x, windDirection.z) * time * windSpeed;
+    float density = texture(weatherMap, texPos).r; //Coverage
 
-    if (density < cloudMinCoverage) return 0.0;
+    if (density < 0.001) return 0.0;
 
     float hSignal = HeightSignal(p);
     density *= hSignal;
 
     if (density < 0.001) return 0.0;
 
-    // Shape: soma ponderada * heightGradient + offset
     float shapeFBM = getCloudShape(p);
-    float baseShapeDensity = shapeFBM * hSignal + densityOffset * 0.1;
+    float baseShapeDensity = shapeFBM * hSignal;
 
     if (baseShapeDensity <= 0.0) return 0.0;
 
@@ -154,7 +119,6 @@ float cloudDensity(vec3 p)
     float oneMinusShape = 1.0 - shapeFBM;
     float erodeWeight   = oneMinusShape * oneMinusShape * oneMinusShape;
     float finalDensity  = baseShapeDensity - detailFBM * erodeWeight;
-
 
     return finalDensity;
 }
@@ -200,7 +164,7 @@ vec3 rayMarch(vec3 ro, vec3 rd) {
             if (cloudDens > 0.0f) //Calcula iluminacao 
             {
                     //float lightTransmittance = lightMarching(p);
-                    float ambientLight = 0.5f;
+                    float ambientLight = 0.2f;
                     vec3 Light = lightColor * ambientLight * cloudDens;
 
                     lightEnergy += Light * transmittance;
