@@ -56,7 +56,7 @@ float perlinFBM2D(vec2 p, float baseScale)
 
     for (int o = 0; o < 5; o++) {
         // baseScale precisa ser inteiro para garantir tileability
-        float scale  = floor(baseScale) * frequency;  // ← floor aqui
+        float scale  = floor(baseScale * frequency);  // ← floor aqui
         float period = scale;                          // período = escala
         value     += perlin2D(p * scale, period) * amplitude;
         frequency *= 2.0;
@@ -102,16 +102,17 @@ void main()
     vec2 uv = vec2(id) / vec2(res); // [0, 1]
 
     // ── Canal R: Coverage ──────────────────────────────
-    float coverage = perlinFBM2D(uv, floor(coverageScale));
+    float coverage = perlinFBM2D(uv, coverageScale);
     coverage = smoothstep(coverageMin, coverageMax, coverage);
 
     // ── Canal G: Height ────────────────────────────────
     // Offset no UV garante que não correlaciona com coverage
-    float height = perlinFBM2D(uv + vec2(31.0, 17.0), floor(heightScale));
-    height = remap(height, 0.0, 1.0, 0.3, 1.0);
+    float height = perlinFBM2D(uv , heightScale);
+    
+    height = smoothstep(coverageMin, coverageMax, height);
 
     // ── Canal B: Altitude ──────────────────────────────
-    float altitude = nearestAltitude(uv);
+    float altitude = perlinFBM2D(uv , heightScale);
 
     imageStore(outWeatherTex, id, vec4(coverage, height, altitude, 1.0));
 }

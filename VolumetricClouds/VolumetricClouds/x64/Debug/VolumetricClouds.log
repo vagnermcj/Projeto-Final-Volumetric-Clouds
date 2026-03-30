@@ -1,10 +1,8 @@
 ﻿  main.cpp
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(145,30): warning C4305: 'initializing': truncation from 'double' to 'float'
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(337,11): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(495,28): warning C4267: '+=': conversion from 'size_t' to 'int', possible loss of data
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(563,76): warning C4244: 'argument': conversion from '_Rep' to 'unsigned int', possible loss of data
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(563,76): warning C4244:         with
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(563,76): warning C4244:         [
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(563,76): warning C4244:             _Rep=__int64
-D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(563,76): warning C4244:         ]
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(431,27): warning C4267: '+=': conversion from 'size_t' to 'int', possible loss of data
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(462,79): warning C4244: 'argument': conversion from '_Rep' to 'unsigned int', possible loss of data
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(462,79): warning C4244:         with
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(462,79): warning C4244:         [
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(462,79): warning C4244:             _Rep=__int64
+D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\main.cpp(462,79): warning C4244:         ]
   VolumetricClouds.vcxproj -> D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\x64\Debug\VolumetricClouds.exe
