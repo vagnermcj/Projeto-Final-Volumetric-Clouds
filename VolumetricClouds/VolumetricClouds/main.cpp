@@ -126,7 +126,7 @@ int main()
     float planetRadius = 6000.0f;
     float atmosphereStart = 100.0f;
     float atmosphereHeight = 100.0f;
-    float innerCloudRadius, outerCloudRadius; // calculados por frame
+    float innerCloudRadius, outerCloudRadius;
 
     // ─── Parâmetros de Densidade ──────────────────────────────────────────────
     float         cloudMinCoverage = 0.005f;
@@ -135,7 +135,8 @@ int main()
     float         maxCloudAltitude = 80.0f;
     float         erosionThreshold = 0.001f;
     glm::vec4     shapeNoiseWeights(1.0f, 0.625f, 0.25f, 0.125f);
-    float         noiseScale = 500.0f; //Ainda na duvida entre 500 ou 0.001f
+    float         shapeScale = 200.0f; //Ainda na duvida entre 500 ou 0.001f
+	float         detailScale = 200.0f; //Ainda na duvida entre 500 ou 0.001f
     int           cloudMaxSteps = 128;
 
     // ─── Parâmetros do Weather Map ────────────────────────────────────────────
@@ -257,8 +258,9 @@ int main()
         ImGui::DragFloat("Min Coverage", &cloudMinCoverage, 0.005f, 0.0f, 1.0f);
         ImGui::DragFloat("Max Cloud Height", &maxCloudHeight, 0.5f, 0.1f, atmosphereHeight);
         ImGui::DragFloat("Max Cloud Altitude", &maxCloudAltitude, 0.5f, 0.0f, atmosphereHeight);
+        ImGui::DragFloat("Shape Scale", &shapeScale, 0.1f, 0.1f);
+        ImGui::DragFloat("Detail Scale", &detailScale, 0.1f, 0.1f);
         ImGui::DragFloat("Erosion Threshold", &erosionThreshold, 0.01f, 0.0f, 1.0f);
-        ImGui::DragFloat("Noise Scale", &noiseScale, 0.1f, 0.1f);
 
         ImGui::SeparatorText("Ray Marching");
         ImGui::DragInt("Max Steps", &cloudMaxSteps, 1, 1, 512);
@@ -303,7 +305,8 @@ int main()
         rayMarchingProgram.SetUniform("maxCloudAltitude", maxCloudAltitude);
         rayMarchingProgram.SetUniform("erosionThreshold", erosionThreshold);
         rayMarchingProgram.SetUniform("shapeNoiseWeights", shapeNoiseWeights);
-        rayMarchingProgram.SetUniform("noiseScale", noiseScale);
+        rayMarchingProgram.SetUniform("shapeScale", shapeScale);
+        rayMarchingProgram.SetUniform("detailScale", detailScale);
 
         // Uniforms — Ray Marching
         rayMarchingProgram.SetUniform("cloudMaxSteps", cloudMaxSteps);

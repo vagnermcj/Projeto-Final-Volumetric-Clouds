@@ -21,7 +21,8 @@ uniform float maxCloudAltitude;
 uniform float erosionThreshold;
 uniform vec4  shapeNoiseWeights;
 uniform int   cloudMaxSteps;
-uniform float noiseScale;
+uniform float shapeScale;
+uniform float detailScale;
 
 // ─── Iluminação ───────────────────────────────────────────────────────────────
 uniform vec3  lightDirection;
@@ -76,7 +77,7 @@ vec2 weatherUV(vec3 p) {
 float getCloudShape(vec3 p)
 {
     // UVW escalado + offset de vento para o shape
-    vec3 shapeUVW = (p / noiseScale) + windDirection * time * windSpeed * 0.4;
+    vec3 shapeUVW = (p / shapeScale) + windDirection * time * windSpeed * 0.4;
 
     vec4 noise = texture(shapeNoise, shapeUVW);
 
@@ -89,7 +90,7 @@ float getCloudShape(vec3 p)
 
 float getCloudDetail(vec3 p)
 {
-    vec3 detailUVW = (p / (noiseScale * 0.5)) + windDirection * time * windSpeed * 0.6;
+    vec3 detailUVW = (p / (detailScale * 0.5)) + windDirection * time * windSpeed * 0.6;
 
     vec3 s = texture(detailNoise, detailUVW).rgb;
     return s.r * 0.625 + s.g * 0.25 + s.b * 0.125;
