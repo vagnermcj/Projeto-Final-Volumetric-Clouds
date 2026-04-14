@@ -6,13 +6,13 @@ layout(rgba32f, binding = 0) uniform writeonly image2D outWeatherTex;
 uniform int altitudePointCount;
 
 // Escala de cada canal — frequências bem diferentes entre si
-uniform float coverageScale;   // sugestão: 3.0  — regiões grandes de cobertura
-uniform float heightScale;     // sugestão: 1.5  — varia mais lentamente que coverage
-uniform float altitudeScale;   // sugestão: 0.8  — quase constante, variação sutil
+uniform float coverageScale;
+uniform float heightScale;
+uniform float altitudeScale;
 
 // Controle do threshold de cobertura
-uniform float coverageMin;     // sugestão: 0.4  — abaixo disso, sem nuvem
-uniform float coverageMax;     // sugestão: 0.7  — acima disso, cobertura total
+uniform float coverageMin;
+uniform float coverageMax;
 
 layout(std430, binding = 1) buffer AltitudePointsBuffer {
     vec4 altitudePoints[]; // xy = posição, z = valor, w = padding
@@ -55,7 +55,6 @@ float perlinFBM2D(vec2 p, float baseScale)
     float frequency = 1.0;
 
     for (int o = 0; o < 5; o++) {
-        // baseScale precisa ser inteiro para garantir tileability
         float scale  = floor(baseScale * frequency);  // ← floor aqui
         float period = scale;                          // período = escala
         value     += perlin2D(p * scale, period) * amplitude;

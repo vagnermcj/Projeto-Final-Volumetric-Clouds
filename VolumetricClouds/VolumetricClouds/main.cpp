@@ -114,8 +114,9 @@ int main()
     // ─── Parâmetros de Iluminação ─────────────────────────────────────────────
     glm::vec3 lightDirection(-0.08f, 0.35f, 1.0f);
     glm::vec3 lightColor(1.0f);
-    float     absorptionCoefficient = 0.7f;
-    float     scatteringCoefficient = 0.8f;
+    float     phase = 0.8f;
+    float sigmaScattering = 0.9f;
+    float sigmaExtinction = 1.0f;
     int       lightMaxSteps = 3;
 
     // ─── Parâmetros de Vento ──────────────────────────────────────────────────
@@ -126,17 +127,17 @@ int main()
     float planetRadius = 6000.0f;
     float atmosphereStart = 100.0f;
     float atmosphereHeight = 100.0f;
+	float atmosphereMaxDepth = 200.0f;
     float innerCloudRadius, outerCloudRadius;
 
     // ─── Parâmetros de Densidade ──────────────────────────────────────────────
-    float         cloudMinCoverage = 0.005f;
     float         weatherScale = 500.0f;
     float         maxCloudHeight = 25.0f;
     float         maxCloudAltitude = 80.0f;
-    float         erosionThreshold = 0.001f;
+    float         detailNoiseWeight = 0.35f;
     glm::vec4     shapeNoiseWeights(1.0f, 0.625f, 0.25f, 0.125f);
     float         shapeScale = 200.0f; //Ainda na duvida entre 500 ou 0.001f
-	float         detailScale = 200.0f; //Ainda na duvida entre 500 ou 0.001f
+	float         detailScale = 50.0f; //Ainda na duvida entre 500 ou 0.001f
     int           cloudMaxSteps = 128;
 
     // ─── Parâmetros do Weather Map ────────────────────────────────────────────
@@ -252,15 +253,15 @@ int main()
         ImGui::DragFloat("Planet Radius", &planetRadius, 100.0f, 1000.0f, 50000.0f);
         ImGui::DragFloat("Atmosphere Start", &atmosphereStart, 0.5f);
         ImGui::DragFloat("Atmosphere Height", &atmosphereHeight, 0.5f, 0.0f);
+        ImGui::DragFloat("Atmosphere Max Depth", &atmosphereMaxDepth, 0.5f, 0.0f);
         ImGui::DragFloat("Weather Scale", &weatherScale, 1.0f, 0.1f);
 
         ImGui::SeparatorText("Density");
-        ImGui::DragFloat("Min Coverage", &cloudMinCoverage, 0.005f, 0.0f, 1.0f);
         ImGui::DragFloat("Max Cloud Height", &maxCloudHeight, 0.5f, 0.1f, atmosphereHeight);
         ImGui::DragFloat("Max Cloud Altitude", &maxCloudAltitude, 0.5f, 0.0f, atmosphereHeight);
         ImGui::DragFloat("Shape Scale", &shapeScale, 0.1f, 0.1f);
         ImGui::DragFloat("Detail Scale", &detailScale, 0.1f, 0.1f);
-        ImGui::DragFloat("Erosion Threshold", &erosionThreshold, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat("Detail Noise Weight", &detailNoiseWeight, 0.01f, 0.0f, 1.0f);
 
         ImGui::SeparatorText("Ray Marching");
         ImGui::DragInt("Max Steps", &cloudMaxSteps, 1, 1, 512);
@@ -268,8 +269,10 @@ int main()
         ImGui::SeparatorText("Lighting");
         ImGui::DragFloat3("Light Direction", glm::value_ptr(lightDirection), 0.01f, -1.0f, 1.0f);
         ImGui::ColorEdit3("Light Color", glm::value_ptr(lightColor));
-        ImGui::DragFloat("Absorption Coefficient", &absorptionCoefficient, 0.001f, 0.0f, 2.0f);
-        ImGui::DragFloat("Scattering Coefficient", &scatteringCoefficient, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat("Phase Value", &phase, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat("Sigma Scattering", &sigmaScattering, 0.01f, 0.0f, 2.0f);
+        ImGui::DragFloat("Sigma Extinction", &sigmaExtinction, 0.01f, 0.0f, 2.0f);
+        sigmaExtinction = std::max(sigmaExtinction, sigmaScattering);
         ImGui::DragInt("Light Steps", &lightMaxSteps, 1, 0, 16);
 
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
@@ -297,13 +300,13 @@ int main()
         rayMarchingProgram.SetUniform("outerCloudRadius", outerCloudRadius);
         rayMarchingProgram.SetUniform("atmosphereStart", atmosphereStart);
         rayMarchingProgram.SetUniform("atmosphereHeight", atmosphereHeight);
+        rayMarchingProgram.SetUniform("atmosphereMaxDepth", atmosphereMaxDepth);
 
         // Uniforms — Densidade
-        rayMarchingProgram.SetUniform("cloudMinCoverage", cloudMinCoverage);
         rayMarchingProgram.SetUniform("weatherScale", weatherScale);
         rayMarchingProgram.SetUniform("maxCloudHeight", maxCloudHeight);
         rayMarchingProgram.SetUniform("maxCloudAltitude", maxCloudAltitude);
-        rayMarchingProgram.SetUniform("erosionThreshold", erosionThreshold);
+        rayMarchingProgram.SetUniform("detailNoiseWeight", detailNoiseWeight);
         rayMarchingProgram.SetUniform("shapeNoiseWeights", shapeNoiseWeights);
         rayMarchingProgram.SetUniform("shapeScale", shapeScale);
         rayMarchingProgram.SetUniform("detailScale", detailScale);
@@ -315,8 +318,9 @@ int main()
         rayMarchingProgram.SetUniform("lightDirection", lightDirection);
         rayMarchingProgram.SetUniform("lightColor", lightColor);
         rayMarchingProgram.SetUniform("lightSteps", lightMaxSteps);
-        rayMarchingProgram.SetUniform("absorptionCoefficient", absorptionCoefficient);
-        rayMarchingProgram.SetUniform("scatteringCoefficient", scatteringCoefficient);
+        rayMarchingProgram.SetUniform("phase", phase);
+		rayMarchingProgram.SetUniform("sigmaScattering", sigmaScattering);
+		rayMarchingProgram.SetUniform("sigmaExtinction", sigmaExtinction);
 
         // Uniforms — Vento / Tempo
         rayMarchingProgram.SetUniform("windDirection", windDirection);
@@ -459,7 +463,7 @@ void dispatchWeatherCompute(Shader& shader, GLuint tex)
 {
     shader.Activate();
     glBindImageTexture(0, tex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-    glDispatchCompute(ceilDiv(512, 8), ceilDiv(512, 8), 1);
+    glDispatchCompute(ceilDiv(1024, 8), ceilDiv(1024, 8), 1);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 

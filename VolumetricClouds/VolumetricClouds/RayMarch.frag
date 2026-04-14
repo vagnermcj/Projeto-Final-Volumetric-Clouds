@@ -12,13 +12,13 @@ uniform float innerCloudRadius;
 uniform float outerCloudRadius;
 uniform float atmosphereStart;
 uniform float atmosphereHeight;
+uniform float atmosphereMaxDepth;
 
 // ─── Densidade ────────────────────────────────────────────────────────────────
-uniform float cloudMinCoverage;
 uniform float weatherScale;
 uniform float maxCloudHeight;
 uniform float maxCloudAltitude;
-uniform float erosionThreshold;
+uniform float detailNoiseWeight;
 uniform vec4  shapeNoiseWeights;
 uniform int   cloudMaxSteps;
 uniform float shapeScale;
@@ -28,8 +28,9 @@ uniform float detailScale;
 uniform vec3  lightDirection;
 uniform vec3  lightColor;
 uniform int   lightSteps;
-uniform float absorptionCoefficient;
-uniform float scatteringCoefficient;
+uniform float phase;
+uniform float sigmaScattering;
+uniform float sigmaExtinction;
 
 // ─── Vento / Tempo ────────────────────────────────────────────────────────────
 uniform vec3  windDirection;
@@ -55,6 +56,10 @@ float HG(float cosTheta, float g) {
     return (1.0 - g2) / (4.0 * 3.14159265 * pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5));
 }
 
+float rand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 vec3 planetCenter() {
     return vec3(0.0, -planetRadius, 0.0);
 }
@@ -77,7 +82,7 @@ vec2 weatherUV(vec3 p) {
 float getCloudShape(vec3 p)
 {
     // UVW escalado + offset de vento para o shape
-    vec3 shapeUVW = (p / shapeScale) + windDirection * time * windSpeed * 0.4;
+    vec3 shapeUVW = (p / shapeScale) + windDirection * time * windSpeed * 0.95;
 
     vec4 noise = texture(shapeNoise, shapeUVW);
 
@@ -90,7 +95,7 @@ float getCloudShape(vec3 p)
 
 float getCloudDetail(vec3 p)
 {
-    vec3 detailUVW = (p / (detailScale * 0.5)) + windDirection * time * windSpeed * 0.6;
+    vec3 detailUVW = (p / detailScale) + windDirection * time * windSpeed * 1.2;
 
     vec3 s = texture(detailNoise, detailUVW).rgb;
     return s.r * 0.625 + s.g * 0.25 + s.b * 0.125;
@@ -120,30 +125,25 @@ float cloudDensity(vec3 p)
 
     vec3  weather  = texture(weatherMap, weatherUV(p)).rgb;
     float coverage = weather.r;
-    if (coverage < cloudMinCoverage) return 0.0;
 
     float height   = weather.g * maxCloudHeight;
     float altitude = weather.b * maxCloudAltitude;
-
-    // Fade por distância XZ
-//    float distXZ = length(p.xz);
-//    coverage    *= smoothstep(0.0, outerCloudRadius * 0.8, distXZ);
-//    if (coverage < 0.001) return 0.0;
 
     // §4.1 — sequência exata do paper
     float density = coverage;
     density      *= HeightSignal(p, height, altitude);
     if (density < 0.001) return 0.0;
 
-    density      *= getCloudShape(p);                    // shape multiplica density
+    density      *= getCloudShape(p); 
     if (density <= 0.0) return 0.0;
 
     // Erosão
-    if (density < erosionThreshold) {
-        float detailFBM   = getCloudDetail(p);
-        float erodeWeight = clamp(1.0 - density / erosionThreshold, 0.0, 1.0);
-        density          -= detailFBM * erodeWeight;
-    }
+    // Erosão com peso cúbico nas bordas
+    float oneMinusShape = 1.0 - getCloudShape(p); // bordas = valor alto
+    float erodeWeight   = oneMinusShape * oneMinusShape * oneMinusShape;
+    float detailFBM     = getCloudDetail(p);
+    density            -= detailFBM * erodeWeight * detailNoiseWeight;
+    
 
     density *= HeightGradient(p, height, altitude);
     return clamp(density, 0.0, 1.0);
@@ -166,10 +166,10 @@ float lightMarching(vec3 pos)
         if (dist > outerCloudRadius || dist < innerCloudRadius) break;
 
         totalDensity += max(0.0, cloudDensity(p)) * stepSize;
-        stepSize     *= 1.5;
+        stepSize     *= 1.1;
     }
 
-    return exp(-absorptionCoefficient * totalDensity);
+    return exp(-sigmaExtinction * totalDensity);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -192,19 +192,34 @@ vec2 raySphereIntersect(vec3 ro, vec3 rd, float radius)
 vec2 getAtmosphereRange(vec3 ro, vec3 rd)
 {
     vec2 outer = raySphereIntersect(ro, rd, outerCloudRadius);
-
     if (outer.y < 0.0) return vec2(1e9, -1e9);
 
     vec2  inner   = raySphereIntersect(ro, rd, innerCloudRadius);
     float camDist = length(ro - planetCenter());
 
-    float tStart = (camDist < innerCloudRadius) ? max(inner.y, 0.0) : 0.0;
-    float tEnd   = outer.y;
+    float tStart, tEnd;
+
+    if (camDist < innerCloudRadius) {
+        // Câmera abaixo das nuvens — entra pela esfera interna, sai pela externa
+        tStart = max(inner.y, 0.0);
+        tEnd   = outer.y;
+    } else if (camDist < outerCloudRadius) {
+        // Câmera dentro da casca
+        tStart = 0.0;
+        // Se olhando para baixo, termina ao atingir a esfera interna
+        // Se olhando para cima, termina ao sair pela esfera externa
+        tEnd = (inner.x > 0.0) ? inner.x : outer.y;
+    } else {
+        // Câmera acima das nuvens — entra pela externa, sai pela interna
+        if (outer.x < 0.0) return vec2(1e9, -1e9);
+        tStart = outer.x;
+        tEnd   = (inner.x > 0.0) ? inner.x : outer.y;
+    }
 
     float maxDist = planetRadius;
     tEnd = min(tEnd, tStart + maxDist);
 
-    return vec2(tStart, tEnd);
+    return vec2(max(tStart, 0.0), tEnd);
 }
 
 vec3 rayMarch(vec3 ro, vec3 rd)
@@ -216,15 +231,17 @@ vec3 rayMarch(vec3 ro, vec3 rd)
     float tEnd   = range.y;
 
     if (tStart >= tEnd ) return skyColor;
+    float minDepth = min((tEnd - tStart) , atmosphereMaxDepth);
+    float stepSize      = minDepth / float(cloudMaxSteps);
 
-    float stepSize      = (tEnd - tStart) / float(cloudMaxSteps);
-    float t             = tStart;
+    float jitter = rand(gl_FragCoord.xy) * stepSize;
+    float t      = tStart + jitter; 
 
 
     float transmittance = 1.0;
     vec3  lightEnergy   = vec3(0.0);
     float cosTheta      = dot(normalize(lightDirection), normalize(rd));
-    float phaseVal = mix(HG(cosTheta, 0.8), HG(cosTheta, -0.3), 0.3);
+    float phaseVal = HG(cosTheta, phase);
 
 
     for (int i = 0; i < cloudMaxSteps; i++)
@@ -243,17 +260,19 @@ vec3 rayMarch(vec3 ro, vec3 rd)
 
         if (cloudDens > 0.0)
         {
+            float sampleSigmaS = sigmaScattering * cloudDens;
+            float sampleSigmaE = sigmaExtinction * cloudDens;
+
+            float lightT       = lightMarching(p);
             float powderEffect = 1.0 - exp(-cloudDens * 2.0);
-            // Integração analítica de Hillaire (§5.2)
-            float sigmaE  = max(absorptionCoefficient * cloudDens, 1e-7);
-            float Tr      = exp(-sigmaE * stepSize);
 
-            float lightT  = lightMarching(p);
-            vec3  direct  = lightColor * lightT * phaseVal;
-            vec3  ambient = lightColor * 0.9;
-            vec3  S       = (direct * powderEffect + ambient) * cloudDens * absorptionCoefficient;
+            vec3  ambient = lightColor * 0.9f;
+            vec3  S       = (lightColor * lightT * phaseVal * powderEffect + ambient) * sampleSigmaS;
 
-            lightEnergy   += transmittance * (S - S * Tr) / sigmaE;
+            float Tr      = exp(-sampleSigmaE * stepSize);
+            vec3  Sint    = (S - S * Tr) / sampleSigmaE;
+
+            lightEnergy   += transmittance * Sint;
             transmittance *= Tr;
         }
 
