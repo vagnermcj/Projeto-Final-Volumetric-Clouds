@@ -28,9 +28,11 @@ uniform float detailScale;
 uniform vec3  lightDirection;
 uniform vec3  lightColor;
 uniform int   lightSteps;
-uniform float phase;
-uniform float sigmaScattering;
-uniform float sigmaExtinction;
+uniform float phaseG;
+uniform vec3 scatteringColor;
+uniform vec3 absorptionColor;
+uniform vec3 ambientColor;
+uniform float precipitation;
 
 // ─── Vento / Tempo ────────────────────────────────────────────────────────────
 uniform vec3  windDirection;
@@ -90,7 +92,7 @@ float getCloudShape(vec3 p)
     float worleyFBM = noise.g * shapeNoiseWeights.g + noise.b * shapeNoiseWeights.b 
                               + noise.a * shapeNoiseWeights.a;
 
-    return remap(perlin, worleyFBM, 1.0, 0.0, 1.0);
+    return perlin * worleyFBM;
 }
 
 float getCloudDetail(vec3 p)
@@ -121,27 +123,28 @@ float HeightGradient(vec3 p, float height, float altitude)
 float cloudDensity(vec3 p)
 {
     float dist = length(p - planetCenter());
-    if (dist < innerCloudRadius || dist > outerCloudRadius) return 0.0;
+    if (dist < innerCloudRadius || dist > outerCloudRadius) return 0.0; //Check atmosphere bounds
 
     vec3  weather  = texture(weatherMap, weatherUV(p)).rgb;
-    float coverage = weather.r;
+    float density = weather.r;
 
     float height   = weather.g * maxCloudHeight;
     float altitude = weather.b * maxCloudAltitude;
+    
 
     // §4.1 — sequência exata do paper
-    float density = coverage;
     density      *= HeightSignal(p, height, altitude);
     if (density < 0.001) return 0.0;
 
-    density      *= getCloudShape(p); 
+    float shape = getCloudShape(p);
+    density      *= shape; 
     if (density <= 0.0) return 0.0;
 
     // Erosão
-    // Erosão com peso cúbico nas bordas
-    float oneMinusShape = 1.0 - getCloudShape(p); // bordas = valor alto
+    float detail = getCloudDetail(p);
+    float oneMinusShape = 1.0 - shape;
     float erodeWeight   = oneMinusShape * oneMinusShape * oneMinusShape;
-    float detailFBM     = getCloudDetail(p);
+    float detailFBM     = detail;
     density            -= detailFBM * erodeWeight * detailNoiseWeight;
     
 
@@ -153,23 +156,27 @@ float cloudDensity(vec3 p)
 //  §5.2 Iluminação — Light Marching
 // ═════════════════════════════════════════════════════════════════════════════
 
-float lightMarching(vec3 pos)
+vec3 lightMarching(vec3 pos)
 {
-    float totalDensity = 0.0;
-    float stepSize     = 1.0;
+    vec3 totalExtinction = vec3(0.0);
+    float stepSize = 1.0;
+
+    vec3 sigmaE = scatteringColor + absorptionColor;
 
     for (int i = 0; i < lightSteps; i++)
     {
-        vec3  p    = pos + normalize(lightDirection) * stepSize * float(i + 1);
+        vec3 p = pos + lightDirection * stepSize * float(i + 1);
         float dist = length(p - planetCenter());
 
-        if (dist > outerCloudRadius || dist < innerCloudRadius) break;
+        if (dist > outerCloudRadius || dist < innerCloudRadius)
+            break;
 
-        totalDensity += max(0.0, cloudDensity(p)) * stepSize;
-        stepSize     *= 1.1;
+        float density = max(0.0, cloudDensity(p));
+        totalExtinction += sigmaE * density * stepSize;
+        stepSize *= 1.1;
     }
 
-    return exp(-sigmaExtinction * totalDensity);
+    return exp(-totalExtinction);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -230,54 +237,64 @@ vec3 rayMarch(vec3 ro, vec3 rd)
     float tStart = range.x;
     float tEnd   = range.y;
 
-    if (tStart >= tEnd ) return skyColor;
-    float minDepth = min((tEnd - tStart) , atmosphereMaxDepth);
-    float stepSize      = minDepth / float(cloudMaxSteps);
+    if (tStart >= tEnd) return skyColor;
 
-    float jitter = rand(gl_FragCoord.xy) * stepSize;
-    float t      = tStart + jitter; 
+    float minDepth  = min(tEnd - tStart, atmosphereMaxDepth);
+    float stepSize  = minDepth / float(cloudMaxSteps);
+    float jitter    = rand(gl_FragCoord.xy) * stepSize;
+    float t         = tStart + jitter;
 
+    vec3 transmittance = vec3(1.0);
+    vec3 lightEnergy   = vec3(0.0);
 
-    float transmittance = 1.0;
-    vec3  lightEnergy   = vec3(0.0);
-    float cosTheta      = dot(normalize(lightDirection), normalize(rd));
-    float phaseVal = HG(cosTheta, phase);
-
+    vec3 sigmaS = scatteringColor;
+    vec3 sigmaA = absorptionColor;
+    vec3 sigmaE = sigmaS + sigmaA;
 
     for (int i = 0; i < cloudMaxSteps; i++)
     {
-        if (t >= tEnd || transmittance < 0.01) break;
+        if (t >= tEnd || dot(transmittance, vec3(0.333)) < 0.01)
+            break;
 
-        vec3  p         = ro + rd * t;
-        if(p.y < 0.0f) return skyColor;
+        vec3 p = ro + rd * t;
+        if (p.y < 0.0) return skyColor;
 
         float cloudDens = cloudDensity(p);
-        if (cloudDens < 0.01)
+
+        if (cloudDens < 0.001)
         {
             t += stepSize * 1.5;
             continue;
         }
 
-        if (cloudDens > 0.0)
-        {
-            float sampleSigmaS = sigmaScattering * cloudDens;
-            float sampleSigmaE = sigmaExtinction * cloudDens;
+        vec3 sampleSigmaS = sigmaS * cloudDens;
+        vec3 sampleSigmaE = sigmaE * cloudDens;
 
-            float lightT       = lightMarching(p);
-            float powderEffect = 1.0 - exp(-cloudDens * 2.0);
+        vec3 lightT = lightMarching(p);
 
-            vec3  ambient = lightColor * 0.9f;
-            vec3  S       = (lightColor * lightT * phaseVal * powderEffect + ambient) * sampleSigmaS;
+        float cosTheta   = dot(normalize(lightDirection), rd);
+        float phaseVal   = HG(cosTheta, phaseG);
+        float powder     = 1.0 - exp(-cloudDens * 2.0);
 
-            float Tr      = exp(-sampleSigmaE * stepSize);
-            vec3  Sint    = (S - S * Tr) / sampleSigmaE;
+        vec3 weather = texture(weatherMap, weatherUV(p)).rgb;
+        float cloudHeight   = weather.g * maxCloudHeight;
+        float cloudAltitude = weather.b * maxCloudAltitude;
+        float gradient = HeightGradient(p, cloudHeight, cloudAltitude);
 
-            lightEnergy   += transmittance * Sint;
-            transmittance *= Tr;
-        }
+        vec3 ambient     = gradient * precipitation * ambientColor;
 
-        t += stepSize;
+        vec3 directLight = lightColor * lightT * phaseVal * powder;
+        vec3 S           = (directLight + ambient) * sampleSigmaS;
+
+        vec3 Tr   = exp(-sampleSigmaE * stepSize);
+        vec3 Sint = (S - S * Tr) / sampleSigmaE;   
+
+        lightEnergy   += transmittance * Sint;
+        transmittance *= Tr;
+        t             += stepSize;
+
     }
+
 
     return lightEnergy + skyColor * transmittance;
 }
@@ -293,17 +310,7 @@ void main()
     vec4 ray_world = inverse(camMatrix) * ray_clip;
     vec3 rd        = normalize(ray_world.xyz / ray_world.w - camPos);
     vec3 ro        = camPos;
+    
+    FragColor = vec4(rayMarch(ro, rd), 1.0);
 
-    int debug = 0; // 0: Clouds | 1: Shape Noise | 2: Shape Noise (R)
-    switch (debug) {
-        case 0:
-            FragColor = vec4(rayMarch(ro, rd), 1.0);
-            return;
-        case 1:
-            FragColor = texture(shapeNoise, vec3(TexCoord, 0.5));
-            return;
-        case 2:
-            FragColor = vec4(vec3(texture(shapeNoise, vec3(TexCoord, 0.5)).r), 1.0);
-            return;
-    }
 }

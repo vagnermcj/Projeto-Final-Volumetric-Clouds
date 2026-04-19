@@ -32,8 +32,8 @@ GLuint previewFBO, previewTex;
 Shader* sliceShader;
 Shader* slice2DShader;
 
-glm::ivec3 shapeOctaves(4, 8, 16);
-glm::ivec3 detailOctaves(4, 8, 16);
+glm::ivec3 shapeOctaves(2, 4, 8);
+glm::ivec3 detailOctaves(8, 16, 32);
 float      perlinScale = 1.0f;
 bool       needsUpdate = true;
 
@@ -114,10 +114,12 @@ int main()
     // ─── Parâmetros de Iluminação ─────────────────────────────────────────────
     glm::vec3 lightDirection(-0.08f, 0.35f, 1.0f);
     glm::vec3 lightColor(1.0f);
-    float     phase = 0.8f;
-    float sigmaScattering = 0.9f;
-    float sigmaExtinction = 1.0f;
-    int       lightMaxSteps = 3;
+    float phaseG = 0.95f;
+    glm::vec3 scatteringColor = glm::vec3(0.8f, 0.9f, 1.0f);
+    glm::vec3 absorptionColor = glm::vec3(0.05f, 0.05f, 0.05f);
+    glm::vec3 ambientColor = glm::vec3(0.8f, 0.9f, 1.0f); 
+    float precipitation = 1.0f;
+    int lightMaxSteps = 3;
 
     // ─── Parâmetros de Vento ──────────────────────────────────────────────────
     glm::vec3 windDirection(1.0f, 0.0f, 1.0f);
@@ -131,14 +133,14 @@ int main()
     float innerCloudRadius, outerCloudRadius;
 
     // ─── Parâmetros de Densidade ──────────────────────────────────────────────
-    float         weatherScale = 500.0f;
-    float         maxCloudHeight = 25.0f;
-    float         maxCloudAltitude = 80.0f;
-    float         detailNoiseWeight = 0.35f;
-    glm::vec4     shapeNoiseWeights(1.0f, 0.625f, 0.25f, 0.125f);
-    float         shapeScale = 200.0f; //Ainda na duvida entre 500 ou 0.001f
-	float         detailScale = 50.0f; //Ainda na duvida entre 500 ou 0.001f
-    int           cloudMaxSteps = 128;
+    float weatherScale = 500.0f;
+    float maxCloudHeight = 25.0f;
+    float maxCloudAltitude = 80.0f;
+    float detailNoiseWeight = 0.15f;
+    glm::vec4 shapeNoiseWeights(1.0f, 0.625f, 0.25f, 0.125f);
+    float shapeScale = 200.0f; //Ainda na duvida entre 500 ou 0.001f
+	float detailScale = 50.0f; //Ainda na duvida entre 500 ou 0.001f
+    int cloudMaxSteps = 128;
 
     // ─── Parâmetros do Weather Map ────────────────────────────────────────────
     float coverageScale = 3.0f;
@@ -261,7 +263,7 @@ int main()
         ImGui::DragFloat("Max Cloud Altitude", &maxCloudAltitude, 0.5f, 0.0f, atmosphereHeight);
         ImGui::DragFloat("Shape Scale", &shapeScale, 0.1f, 0.1f);
         ImGui::DragFloat("Detail Scale", &detailScale, 0.1f, 0.1f);
-        ImGui::DragFloat("Detail Noise Weight", &detailNoiseWeight, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat("Erosion Weight", &detailNoiseWeight, 0.01f, 0.0f, 1.0f);
 
         ImGui::SeparatorText("Ray Marching");
         ImGui::DragInt("Max Steps", &cloudMaxSteps, 1, 1, 512);
@@ -269,10 +271,11 @@ int main()
         ImGui::SeparatorText("Lighting");
         ImGui::DragFloat3("Light Direction", glm::value_ptr(lightDirection), 0.01f, -1.0f, 1.0f);
         ImGui::ColorEdit3("Light Color", glm::value_ptr(lightColor));
-        ImGui::DragFloat("Phase Value", &phase, 0.01f, 0.0f, 1.0f);
-        ImGui::DragFloat("Sigma Scattering", &sigmaScattering, 0.01f, 0.0f, 2.0f);
-        ImGui::DragFloat("Sigma Extinction", &sigmaExtinction, 0.01f, 0.0f, 2.0f);
-        sigmaExtinction = std::max(sigmaExtinction, sigmaScattering);
+        ImGui::DragFloat("Phase Value", &phaseG, 0.01f, 0.0f, 0.999f);
+        ImGui::ColorEdit3("Scattering Color", glm::value_ptr(scatteringColor));
+        ImGui::ColorEdit3("Absorption Color", glm::value_ptr(absorptionColor));
+		ImGui::ColorEdit3("Ambient Color", glm::value_ptr(ambientColor));
+		ImGui::DragFloat("Precipitation", &precipitation, 0.01f, 0.01f, 1.0f);
         ImGui::DragInt("Light Steps", &lightMaxSteps, 1, 0, 16);
 
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
@@ -318,9 +321,11 @@ int main()
         rayMarchingProgram.SetUniform("lightDirection", lightDirection);
         rayMarchingProgram.SetUniform("lightColor", lightColor);
         rayMarchingProgram.SetUniform("lightSteps", lightMaxSteps);
-        rayMarchingProgram.SetUniform("phase", phase);
-		rayMarchingProgram.SetUniform("sigmaScattering", sigmaScattering);
-		rayMarchingProgram.SetUniform("sigmaExtinction", sigmaExtinction);
+        rayMarchingProgram.SetUniform("phaseG", phaseG);
+		rayMarchingProgram.SetUniform("scatteringColor", scatteringColor);
+		rayMarchingProgram.SetUniform("absorptionColor", absorptionColor);
+		rayMarchingProgram.SetUniform("ambientColor", ambientColor);
+		rayMarchingProgram.SetUniform("precipitation", precipitation);
 
         // Uniforms — Vento / Tempo
         rayMarchingProgram.SetUniform("windDirection", windDirection);
