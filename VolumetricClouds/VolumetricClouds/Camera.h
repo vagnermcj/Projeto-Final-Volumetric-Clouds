@@ -36,7 +36,8 @@ class Camera
 		Camera(int width, int height, glm::vec3 position);
 		void updateMatrix(float FOVdeg, float nearPlane, float farPlane);
 		void Matrix(Shader& shader, const char* uniform);
-		void Inputs(GLFWwindow* window, ImGuiIO* io);
+		void Inputs(GLFWwindow* window, ImGuiIO* io, bool allowInput);
+		void SetAspectRatio(int x, int y);
 	private:
 		float deltaTime = 0.0f;
 		float lastFrame = 0.0f;

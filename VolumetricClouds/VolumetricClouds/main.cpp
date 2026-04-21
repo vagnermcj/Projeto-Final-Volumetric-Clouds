@@ -20,14 +20,16 @@
 #include "Camera.h"
 #include "WorleyNoise3D.h"
 
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 800;
+const unsigned int SCR_WIDTH = 1600;
+const unsigned int SCR_HEIGHT = 900;
 
 static GLuint quadID;
 
 GLuint shapeTexture, detailTexture, weatherTexture;
 GLuint ssboShape, ssboDetail, ssboAltitude;
 GLuint previewFBO, previewTex;
+GLuint mainFBO, mainColorTex, mainDepthTex;
+int mainFBOWidth = 800, mainFBOHeight = 800;
 
 Shader* sliceShader;
 Shader* slice2DShader;
@@ -54,6 +56,7 @@ struct AltitudePoint {
 void         initTextures();
 void         initTexturePreview();
 void         initScreenQuad();
+void         initMainFBO(int width, int height);
 void         drawScreenQuad();
 void         framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void         updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut);
@@ -90,6 +93,7 @@ int main()
     initTextures();
     initTexturePreview();
     initScreenQuad();
+    initMainFBO(SCR_WIDTH, SCR_HEIGHT);
     glGenBuffers(1, &ssboShape);
     glGenBuffers(1, &ssboDetail);
 
@@ -106,11 +110,9 @@ int main()
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-	io.ConfigInputTextCursorBlink = false;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 430 core");
-
     Camera camera(SCR_WIDTH, SCR_HEIGHT, glm::vec3(0.0f, 0.0f, 5.0f));
 
     // ─── Parâmetros de Iluminação ─────────────────────────────────────────────
@@ -168,6 +170,7 @@ int main()
         glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        
         // Compute Shaders 
         if (needsUpdate) {
             glm::ivec3 sOff, dOff;
@@ -190,11 +193,89 @@ int main()
             needsUpdate = false;
         }
 
+        //Render Scene
+        glBindFramebuffer(GL_FRAMEBUFFER, mainFBO);
+        glViewport(0, 0, mainFBOWidth, mainFBOHeight);
+        glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        rayMarchingProgram.Activate();
+
+        // Texturas
+        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_3D, shapeTexture);   rayMarchingProgram.SetUniform("shapeNoise", 0);
+        glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_3D, detailTexture);  rayMarchingProgram.SetUniform("detailNoise", 1);
+        glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, weatherTexture); rayMarchingProgram.SetUniform("weatherMap", 2);
+        glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture); rayMarchingProgram.SetUniform("skybox", 3);
+
+        // Uniforms — Atmosfera
+        innerCloudRadius = planetRadius + atmosphereStart;
+        outerCloudRadius = planetRadius + atmosphereStart + atmosphereHeight;
+        rayMarchingProgram.SetUniform("planetRadius", planetRadius);
+        rayMarchingProgram.SetUniform("innerCloudRadius", innerCloudRadius);
+        rayMarchingProgram.SetUniform("outerCloudRadius", outerCloudRadius);
+        rayMarchingProgram.SetUniform("atmosphereStart", atmosphereStart);
+        rayMarchingProgram.SetUniform("atmosphereHeight", atmosphereHeight);
+        rayMarchingProgram.SetUniform("atmosphereMaxDepth", atmosphereMaxDepth);
+
+        // Uniforms — Densidade
+        rayMarchingProgram.SetUniform("weatherScale", weatherScale);
+        rayMarchingProgram.SetUniform("maxCloudHeight", maxCloudHeight);
+        rayMarchingProgram.SetUniform("maxCloudAltitude", maxCloudAltitude);
+        rayMarchingProgram.SetUniform("detailNoiseWeight", detailNoiseWeight);
+        rayMarchingProgram.SetUniform("shapeNoiseWeights", shapeNoiseWeights);
+        rayMarchingProgram.SetUniform("shapeScale", shapeScale);
+        rayMarchingProgram.SetUniform("detailScale", detailScale);
+
+        // Uniforms — Ray Marching
+        rayMarchingProgram.SetUniform("cloudMaxSteps", cloudMaxSteps);
+
+        // Uniforms — Iluminação
+        rayMarchingProgram.SetUniform("lightDirection", lightDirection);
+        rayMarchingProgram.SetUniform("lightColor", lightColor);
+        rayMarchingProgram.SetUniform("lightSteps", lightMaxSteps);
+        rayMarchingProgram.SetUniform("phaseG", phaseG);
+        rayMarchingProgram.SetUniform("scatteringColor", scatteringColor);
+        rayMarchingProgram.SetUniform("absorptionColor", absorptionColor);
+        rayMarchingProgram.SetUniform("ambientColor", ambientColor);
+        rayMarchingProgram.SetUniform("ambientIntensity", ambientIntensity);
+        rayMarchingProgram.SetUniform("precipitation", precipitation);
+
+        // Uniforms — Vento / Tempo
+        rayMarchingProgram.SetUniform("windDirection", windDirection);
+        rayMarchingProgram.SetUniform("windSpeed", windSpeed * 0.1f);
+        rayMarchingProgram.SetUniform("time", (float)glfwGetTime());
+
+
+        camera.updateMatrix(45.0f, 0.1f, 100.0f);
+        camera.Matrix(rayMarchingProgram, "camMatrix");
+        rayMarchingProgram.SetUniform("camPos", camera.Position);
+
+        drawScreenQuad();
+
+
         // ImGui
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        ImGui::ShowDemoWindow();
+
+        ImGui::DockSpaceOverViewport(ImGui::GetMainViewport()->ID);
+        
+         ImGui::Begin("Scene Viewport", nullptr, ImGuiWindowFlags_NoScrollbar);
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+        if (viewportSize.x > 0 && viewportSize.y > 0) {
+            // Update FBO if size changed
+            if ((int)viewportSize.x != mainFBOWidth || (int)viewportSize.y != mainFBOHeight) {
+                glDeleteFramebuffers(1, &mainFBO);
+                glDeleteTextures(1, &mainColorTex);
+                glDeleteTextures(1, &mainDepthTex);
+                initMainFBO((int)viewportSize.x, (int)viewportSize.y);
+                camera.SetAspectRatio((int)viewportSize.x, (int)viewportSize.y);
+            }
+            ImGui::Image((ImTextureID)(intptr_t)mainColorTex, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+        }
+        bool viewportFocused = ImGui::IsWindowFocused();
+        bool viewportHovered = ImGui::IsWindowHovered();
+        ImGui::End();
 
         ImGui::Begin("Cloud Generation");
 
@@ -290,68 +371,11 @@ int main()
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
 
-        // Render
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        int w, h;
-        glfwGetFramebufferSize(window, &w, &h);
-        glViewport(0, 0, w, h);
-
-        rayMarchingProgram.Activate();
-
-        // Texturas
-        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_3D, shapeTexture);   rayMarchingProgram.SetUniform("shapeNoise", 0);
-        glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_3D, detailTexture);  rayMarchingProgram.SetUniform("detailNoise", 1);
-        glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, weatherTexture); rayMarchingProgram.SetUniform("weatherMap", 2);
-        glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture); rayMarchingProgram.SetUniform("skybox", 3);
-
-        // Uniforms — Atmosfera
-        innerCloudRadius = planetRadius + atmosphereStart;
-        outerCloudRadius = planetRadius + atmosphereStart + atmosphereHeight;
-        rayMarchingProgram.SetUniform("planetRadius", planetRadius);
-        rayMarchingProgram.SetUniform("innerCloudRadius", innerCloudRadius);
-        rayMarchingProgram.SetUniform("outerCloudRadius", outerCloudRadius);
-        rayMarchingProgram.SetUniform("atmosphereStart", atmosphereStart);
-        rayMarchingProgram.SetUniform("atmosphereHeight", atmosphereHeight);
-        rayMarchingProgram.SetUniform("atmosphereMaxDepth", atmosphereMaxDepth);
-
-        // Uniforms — Densidade
-        rayMarchingProgram.SetUniform("weatherScale", weatherScale);
-        rayMarchingProgram.SetUniform("maxCloudHeight", maxCloudHeight);
-        rayMarchingProgram.SetUniform("maxCloudAltitude", maxCloudAltitude);
-        rayMarchingProgram.SetUniform("detailNoiseWeight", detailNoiseWeight);
-        rayMarchingProgram.SetUniform("shapeNoiseWeights", shapeNoiseWeights);
-        rayMarchingProgram.SetUniform("shapeScale", shapeScale);
-        rayMarchingProgram.SetUniform("detailScale", detailScale);
-
-        // Uniforms — Ray Marching
-        rayMarchingProgram.SetUniform("cloudMaxSteps", cloudMaxSteps);
-
-        // Uniforms — Iluminação
-        rayMarchingProgram.SetUniform("lightDirection", lightDirection);
-        rayMarchingProgram.SetUniform("lightColor", lightColor);
-        rayMarchingProgram.SetUniform("lightSteps", lightMaxSteps);
-        rayMarchingProgram.SetUniform("phaseG", phaseG);
-		rayMarchingProgram.SetUniform("scatteringColor", scatteringColor);
-		rayMarchingProgram.SetUniform("absorptionColor", absorptionColor);
-		rayMarchingProgram.SetUniform("ambientColor", ambientColor);
-		rayMarchingProgram.SetUniform("ambientIntensity", ambientIntensity);
-		rayMarchingProgram.SetUniform("precipitation", precipitation);
-
-        // Uniforms — Vento / Tempo
-        rayMarchingProgram.SetUniform("windDirection", windDirection);
-        rayMarchingProgram.SetUniform("windSpeed", windSpeed * 0.1f);
-        rayMarchingProgram.SetUniform("time", (float)glfwGetTime());
-
-        drawScreenQuad();
-
-        // Câmera
-        camera.Inputs(window, &io);
-        camera.updateMatrix(45.0f, 0.1f, 100.0f);
-        camera.Matrix(rayMarchingProgram, "camMatrix");
-        rayMarchingProgram.SetUniform("camPos", camera.Position);
 
         // ImGui Render
         ImGui::Render();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT); // or use the window's actual size
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
@@ -361,12 +385,20 @@ int main()
             glfwMakeContextCurrent(backup);
         }
 
+        // ─── Camera Input (only when viewport is focused/hovered) ─────────────
+        camera.Inputs(window, &io, viewportFocused || viewportHovered);
+
         glfwSwapBuffers(window);
     }
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    glDeleteFramebuffers(1, &mainFBO);
+    glDeleteTextures(1, &mainColorTex);
+    glDeleteTextures(1, &mainDepthTex);
+
     rayMarchingProgram.Delete();
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -376,6 +408,30 @@ int main()
 // ═════════════════════════════════════════════════════════════════════════════
 //  Inicialização
 // ═════════════════════════════════════════════════════════════════════════════
+
+void initMainFBO(int width, int height) {
+    glGenFramebuffers(1, &mainFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, mainFBO);
+
+    glGenTextures(1, &mainColorTex);
+    glBindTexture(GL_TEXTURE_2D, mainColorTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mainColorTex, 0);
+
+    glGenTextures(1, &mainDepthTex);
+    glBindTexture(GL_TEXTURE_2D, mainDepthTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mainDepthTex, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "Main FBO incomplete!\n";
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    mainFBOWidth = width;
+    mainFBOHeight = height;
+}
 
 void initScreenQuad()
 {

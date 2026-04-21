@@ -19,15 +19,22 @@ void Camera::updateMatrix(float FOVdeg, float nearPlane, float farPlane)
 	cameraMatrix = projection * view;
 }
 
+void Camera::SetAspectRatio(int x, int y)
+{
+	width = x;
+	height = y;
+}
+
 void Camera::Matrix(Shader& shader, const char* uniform)
 {
 	glUniformMatrix4fv(glGetUniformLocation(shader.ID, uniform), 1, GL_FALSE, glm::value_ptr(cameraMatrix));
 }
 
-void Camera::Inputs(GLFWwindow* window, ImGuiIO* io)
-{
+void Camera::Inputs(GLFWwindow* window, ImGuiIO* io, bool allowInput)
+{	
 	if (io->WantCaptureKeyboard || io->WantCaptureMouse)
-		return;
+		if(!allowInput) return;
+		
 
 
 	float currentFrame = glfwGetTime();
