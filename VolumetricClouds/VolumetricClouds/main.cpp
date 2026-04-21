@@ -34,8 +34,10 @@ Shader* slice2DShader;
 
 glm::ivec3 shapeOctaves(2, 4, 8);
 glm::ivec3 detailOctaves(8, 16, 32);
-float      perlinScale = 1.0f;
-bool       needsUpdate = true;
+float perlinScale = 1.0f;
+bool needsUpdate = true;
+bool invertWorleyShape = false;
+bool invertWorleyDetail = true;
 
 struct NoiseBufferData {
     std::vector<glm::vec3> allPoints;
@@ -55,7 +57,7 @@ void         initScreenQuad();
 void         drawScreenQuad();
 void         framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void         updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut);
-void         dispatchNoiseCompute(Shader& shader, GLuint tex, glm::ivec3 res, glm::ivec3 octaves, glm::ivec3 offsets, bool isShape);
+void         dispatchNoiseCompute(Shader& shader, GLuint tex, glm::ivec3 res, glm::ivec3 octaves, glm::ivec3 offsets, bool isShape, bool invertWorley);
 void         dispatchWeatherCompute(Shader& shader, GLuint tex);
 void         renderTexturePreview(Shader& shader, GLuint tex3D, float slice, int channel);
 void         renderTexturePreview2D(Shader& shader, GLuint tex2D, int channel);
@@ -77,7 +79,6 @@ int main()
     glfwMakeContextCurrent(window);
     gladLoadGL();
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
     // ─── Shaders ──────────────────────────────────────────────────────────────
     Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
     Shader noiseCompute("NoiseCompute.glsl");
@@ -105,6 +106,7 @@ int main()
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+	io.ConfigInputTextCursorBlink = false;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 430 core");
@@ -117,7 +119,8 @@ int main()
     float phaseG = 0.95f;
     glm::vec3 scatteringColor = glm::vec3(0.8f, 0.9f, 1.0f);
     glm::vec3 absorptionColor = glm::vec3(0.05f, 0.05f, 0.05f);
-    glm::vec3 ambientColor = glm::vec3(0.8f, 0.9f, 1.0f); 
+    glm::vec3 ambientColor = glm::vec3(1.0f, 1.0f, 1.0f); 
+	float ambientIntensity = 1.3f;
     float precipitation = 1.0f;
     int lightMaxSteps = 3;
 
@@ -170,8 +173,8 @@ int main()
             glm::ivec3 sOff, dOff;
             updateNoiseSSBO(ssboShape, shapeOctaves, sOff);
             updateNoiseSSBO(ssboDetail, detailOctaves, dOff);
-            dispatchNoiseCompute(noiseCompute, shapeTexture, glm::ivec3(128, 32, 128), shapeOctaves, sOff, true);
-            dispatchNoiseCompute(noiseCompute, detailTexture, glm::ivec3(32, 32, 32), detailOctaves, dOff, false);
+            dispatchNoiseCompute(noiseCompute, shapeTexture, glm::ivec3(128, 32, 128), shapeOctaves, sOff, true, invertWorleyShape);
+            dispatchNoiseCompute(noiseCompute, detailTexture, glm::ivec3(32, 32, 32), detailOctaves, dOff, false, invertWorleyDetail);
 
             weatherCompute.Activate();
             weatherCompute.SetUniform("coverageScale", coverageScale);
@@ -191,6 +194,7 @@ int main()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        ImGui::ShowDemoWindow();
 
         ImGui::Begin("Cloud Generation");
 
@@ -219,10 +223,14 @@ int main()
             if (ImGui::DragInt3("Shape Octaves", glm::value_ptr(shapeOctaves), 1, 2, 64)) needsUpdate = true;
             if (ImGui::DragFloat("Perlin Scale", &perlinScale, 0.1f, 1.0f, 20.0f))        needsUpdate = true;
             ImGui::DragFloat4("Shape Weights", glm::value_ptr(shapeNoiseWeights), 0.01f, 0.0f, 2.0f);
+            if (ImGui::Checkbox("Invert Worley", &invertWorleyShape))
+                needsUpdate = true;
             break;
         case 1:
             ImGui::SliderFloat("Slice Z", &previewSlice, 0.0f, 1.0f);
             if (ImGui::DragInt3("Detail Octaves", glm::value_ptr(detailOctaves), 1, 2, 64)) needsUpdate = true;
+            if (ImGui::Checkbox("Invert Worley", &invertWorleyDetail))
+                needsUpdate = true;
             break;
         case 2:
             if (ImGui::DragFloat("Coverage Scale", &coverageScale, 0.1f, 1.0f, 16.0f)) needsUpdate = true;
@@ -275,6 +283,7 @@ int main()
         ImGui::ColorEdit3("Scattering Color", glm::value_ptr(scatteringColor));
         ImGui::ColorEdit3("Absorption Color", glm::value_ptr(absorptionColor));
 		ImGui::ColorEdit3("Ambient Color", glm::value_ptr(ambientColor));
+		ImGui::DragFloat("Ambient Intensity", &ambientIntensity, 0.01f, 0.1f, 5.0f);
 		ImGui::DragFloat("Precipitation", &precipitation, 0.01f, 0.01f, 1.0f);
         ImGui::DragInt("Light Steps", &lightMaxSteps, 1, 0, 16);
 
@@ -325,6 +334,7 @@ int main()
 		rayMarchingProgram.SetUniform("scatteringColor", scatteringColor);
 		rayMarchingProgram.SetUniform("absorptionColor", absorptionColor);
 		rayMarchingProgram.SetUniform("ambientColor", ambientColor);
+		rayMarchingProgram.SetUniform("ambientIntensity", ambientIntensity);
 		rayMarchingProgram.SetUniform("precipitation", precipitation);
 
         // Uniforms — Vento / Tempo
@@ -450,13 +460,14 @@ void updateNoiseSSBO(GLuint ssbo, glm::ivec3 octaves, glm::ivec3& offsetsOut)
     glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(glm::vec4), points.data(), GL_STATIC_DRAW);
 }
 
-void dispatchNoiseCompute(Shader& shader, GLuint tex, glm::ivec3 res, glm::ivec3 octaves, glm::ivec3 offsets, bool isShape)
+void dispatchNoiseCompute(Shader& shader, GLuint tex, glm::ivec3 res, glm::ivec3 octaves, glm::ivec3 offsets, bool isShape, bool invertWorleyNoise)
 {
     shader.Activate();
     shader.SetUniform("numCells", octaves);
     shader.SetUniform("offsets", offsets);
     shader.SetUniform("isShape", isShape);
     shader.SetUniform("perlinScale", perlinScale);
+    shader.SetUniform("invertWorley", invertWorleyNoise);
 
     glBindImageTexture(0, tex, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA32F);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, isShape ? ssboShape : ssboDetail);
@@ -468,7 +479,7 @@ void dispatchWeatherCompute(Shader& shader, GLuint tex)
 {
     shader.Activate();
     glBindImageTexture(0, tex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-    glDispatchCompute(ceilDiv(1024, 8), ceilDiv(1024, 8), 1);
+    glDispatchCompute(ceilDiv(512, 8), ceilDiv(512, 8), 1);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 

@@ -11,6 +11,7 @@ uniform ivec3 numCells;
 uniform ivec3 offsets;
 uniform bool  isShape;
 uniform float perlinScale = 4.0;
+uniform bool invertWorley;
 
 // ─────────────────────────────────────────────
 //  WORLEY NOISE  (já invertido: 1 = perto do feature point)
@@ -41,8 +42,8 @@ float worley(vec3 uvw, int cells, int bufferOffset)
     }
 
     float maxDist = sqrt(3.0);
-    // Invertido: 1 perto do ponto, 0 longe → billowing
-    return  clamp(minDist / maxDist, 0.0, 1.0);
+    float val = clamp(minDist / maxDist, 0.0, 1.0);
+    return invertWorley? 1.0 - val : val;
 }
 
 // ─────────────────────────────────────────────
@@ -50,10 +51,8 @@ float worley(vec3 uvw, int cells, int bufferOffset)
 //  Substitui o hash anterior que gerava ruído sem estrutura.
 // ─────────────────────────────────────────────
 
-// Vetores de gradiente pseudo-aleatórios
 vec3 gradHash(vec3 p, float period)
 {
-    // Garante que p=0 e p=period geram o mesmo gradiente
     p = mod(p, period);
     p = vec3(dot(p, vec3(127.1, 311.7,  74.7)),
              dot(p, vec3(269.5, 183.3, 246.1)),

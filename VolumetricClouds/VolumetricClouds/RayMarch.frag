@@ -32,6 +32,7 @@ uniform float phaseG;
 uniform vec3 scatteringColor;
 uniform vec3 absorptionColor;
 uniform vec3 ambientColor;
+uniform float ambientIntensity;
 uniform float precipitation;
 
 // ─── Vento / Tempo ────────────────────────────────────────────────────────────
@@ -281,7 +282,7 @@ vec3 rayMarch(vec3 ro, vec3 rd)
         float cloudAltitude = weather.b * maxCloudAltitude;
         float gradient = HeightGradient(p, cloudHeight, cloudAltitude);
 
-        vec3 ambient     = gradient * precipitation * ambientColor;
+        vec3 ambient     = gradient * precipitation * ambientColor * ambientIntensity;
 
         vec3 directLight = lightColor * lightT * phaseVal * powder;
         vec3 S           = (directLight + ambient) * sampleSigmaS;
