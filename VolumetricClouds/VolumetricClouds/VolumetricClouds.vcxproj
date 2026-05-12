@@ -33,6 +33,7 @@
     <ClCompile Include="Libraries\include\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PerlinNoise3D.cpp" />
+    <ClCompile Include="PresetManager.cpp" />
     <ClCompile Include="shaderClass.cpp" />
     <ClCompile Include="VAO.cpp" />
     <ClCompile Include="VBO.cpp" />
@@ -45,7 +46,9 @@
     <ClInclude Include="Floor.h" />
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="PerlinNoise3D.h" />
+    <ClInclude Include="PresetManager.h" />
     <ClInclude Include="shaderClass.h" />
+    <ClInclude Include="Skybox.h" />
     <ClInclude Include="VAO.h" />
     <ClInclude Include="VBO.h" />
     <ClInclude Include="WorleyNoise3D.h" />
@@ -153,6 +156,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>D:\Projeto-Final-Volumetric-Clouds\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\Libraries\include;D:\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\imgui;D:\Projeto-Final-Volumetric-Clouds\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\Libraries\lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

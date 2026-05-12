@@ -10,8 +10,7 @@
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
+
 
 #include "shaderClass.h"
 #include "VAO.h"
@@ -19,6 +18,8 @@
 #include "EBO.h"
 #include "Camera.h"
 #include "WorleyNoise3D.h"
+#include "PresetManager.h"
+#include "Skybox.h"
 
 const unsigned int SCR_WIDTH = 1600;
 const unsigned int SCR_HEIGHT = 900;
@@ -38,7 +39,7 @@ glm::ivec3 shapeOctaves(2, 4, 8);
 glm::ivec3 detailOctaves(8, 16, 32);
 float perlinScale = 1.0f;
 bool needsUpdate = true;
-bool invertWorleyShape = false;
+bool invertWorleyShape = true;
 bool invertWorleyDetail = true;
 
 struct NoiseBufferData {
@@ -97,12 +98,7 @@ int main()
     glGenBuffers(1, &ssboShape);
     glGenBuffers(1, &ssboDetail);
 
-    std::vector<std::string> faces = {
-        "images/px.png", "images/nx.png",
-        "images/py.png", "images/ny.png",
-        "images/pz.png", "images/nz.png"
-    };
-    unsigned int cubemapTexture = loadCubemap(faces);
+    
 
     // ─── ImGui ────────────────────────────────────────────────────────────────
     IMGUI_CHECKVERSION();
@@ -114,6 +110,14 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 430 core");
     Camera camera(SCR_WIDTH, SCR_HEIGHT, glm::vec3(0.0f, 0.0f, 5.0f));
+
+	// ─── Gerenciamento de Presets ─────────────────────────────────────────────
+	PresetManager presetManager;
+    int selectedPreset = 0;
+	char newPresetName[64] = "";
+
+	SkyboxManager skyboxManager;
+    std::string currentSkyboxName = "default";
 
     // ─── Parâmetros de Iluminação ─────────────────────────────────────────────
     glm::vec3 lightDirection(-0.08f, 0.35f, 1.0f);
@@ -150,7 +154,7 @@ int main()
     // ─── Parâmetros do Weather Map ────────────────────────────────────────────
     float coverageScale = 3.0f;
     float heightScale = 1.5f;
-    float altitudeScale = 0.8f;
+    float altitudeScale = 1.0f;
     float coverageMin = 0.4f;
     float coverageMax = 0.7f;
     int   altitudePointCount = 3;
@@ -158,6 +162,16 @@ int main()
     float altitudeBlobMaxRadius = 0.15f;
 
     generateAltitudePoints(altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius);
+
+    // Skybox
+    unsigned int cubemapTexture = 0;
+    if (skyboxManager.getSkyboxCount() > 0) {
+        cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
+        currentSkyboxName = skyboxManager.getCurrentSkyboxName();
+    }
+    else {
+        std::cout << "Warning: No skyboxes found! Create folder: skyboxes/default/\n";
+    }
 
     // ─── Estado do Preview ────────────────────────────────────────────────────
     static float previewSlice = 0.5f;
@@ -370,6 +384,130 @@ int main()
 
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
         ImGui::End();
+
+        ImGui::Begin("Skybox");
+
+        auto skyboxNames = skyboxManager.getSkyboxNames();
+        int skyboxIndex = skyboxManager.getCurrentIndex();
+
+        if (ImGui::Combo("##SkyboxSelector", &skyboxIndex, skyboxNames.data(), skyboxNames.size())) {
+            skyboxManager.setCurrentSkybox(skyboxIndex);
+
+            // Deleta textura antiga
+            /*if (cubemapTexture != 0) {
+                glDeleteTextures(1, &cubemapTexture);
+            }*/
+
+            // Carrega nova skybox
+            cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
+            currentSkyboxName = skyboxManager.getCurrentSkyboxName();
+        }
+
+        if (ImGui::Button("Rescan Skyboxes", ImVec2(-1, 0))) {
+            skyboxManager.reloadAll();
+            if (skyboxManager.getSkyboxCount() > 0) {
+                cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
+                currentSkyboxName = skyboxManager.getCurrentSkyboxName();
+            }
+        }
+
+        ImGui::End();
+
+
+        ImGui::Begin("Presets");
+
+        // Combo para selecionar preset
+        auto presetNames = presetManager.getPresetNames();
+        if (ImGui::Combo("##PresetSelector", &selectedPreset, presetNames.data(), presetNames.size())) {
+            // Aplicar preset selecionado
+            presetManager.applyPreset(selectedPreset,
+                // Vento
+                windDirection, windSpeed,
+                // Atmosfera
+                planetRadius, atmosphereStart, atmosphereHeight, atmosphereMaxDepth,
+                // Densidade
+                weatherScale, maxCloudHeight, maxCloudAltitude, shapeScale, detailScale,
+                detailNoiseWeight, shapeNoiseWeights,
+                // Ray Marching
+                cloudMaxSteps,
+                // Iluminação
+                lightDirection, lightColor, phaseG,
+                scatteringColor, absorptionColor, ambientColor,
+                ambientIntensity, precipitation, lightMaxSteps,
+                // Noise
+                shapeOctaves, detailOctaves, perlinScale,
+                invertWorleyShape, invertWorleyDetail,
+                // Weather
+                coverageScale, heightScale, altitudeScale, coverageMin, coverageMax,
+                altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius, currentSkyboxName
+            );
+
+            // Aplicar skybox do preset
+            if (skyboxManager.setCurrentSkyboxByName(currentSkyboxName)) {
+                /*if (cubemapTexture != 0) {
+                    glDeleteTextures(1, &cubemapTexture);
+                }*/
+                cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
+            }
+
+            // Regenerar altitude points e marcar para update
+            generateAltitudePoints(altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius);
+            needsUpdate = true;
+        }
+
+        ImGui::Separator();
+
+        // Salvar novo preset
+        ImGui::Text("Salvar Preset Atual:");
+        ImGui::InputText("Nome", newPresetName, 64);
+
+        if (ImGui::Button("Salvar", ImVec2(-1, 0))) {
+            if (strlen(newPresetName) > 0) {
+                presetManager.saveCurrentState(
+                    std::string(newPresetName),
+                    // Vento
+                    windDirection, windSpeed,
+                    // Atmosfera
+                    planetRadius, atmosphereStart, atmosphereHeight, atmosphereMaxDepth,
+                    // Densidade
+                    weatherScale, maxCloudHeight, maxCloudAltitude, shapeScale, detailScale,
+                    detailNoiseWeight, shapeNoiseWeights,
+                    // Ray Marching
+                    cloudMaxSteps,
+                    // Iluminação
+                    lightDirection, lightColor, phaseG,
+                    scatteringColor, absorptionColor, ambientColor,
+                    ambientIntensity, precipitation, lightMaxSteps,
+                    // Noise
+                    shapeOctaves, detailOctaves, perlinScale,
+                    invertWorleyShape, invertWorleyDetail,
+                    // Weather
+                    coverageScale, heightScale, altitudeScale, coverageMin, coverageMax,
+                    altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius,
+                    // Skybox
+                    currentSkyboxName 
+                );
+
+                // Limpa o input
+                newPresetName[0] = '\0';
+
+                // Atualiza o combo para mostrar o novo preset
+                selectedPreset = presetManager.getPresetCount() - 1;
+            }
+        }
+
+        ImGui::Separator();
+
+        // Deletar preset (não pode deletar Default)
+        if (selectedPreset > 0) {
+            if (ImGui::Button("Deletar Preset Selecionado", ImVec2(-1, 0))) {
+                presetManager.deletePreset(selectedPreset);
+                selectedPreset = 0; // volta para Default
+            }
+        }
+
+        ImGui::End();
+
 
 
         // ImGui Render

@@ -1,0 +1,53 @@
+# Test Wind Mountains Preset
+
+# Wind
+windDirection=1,0,1
+windSpeed=1.18
+
+# Atmosphere
+planetRadius=6000
+atmosphereStart=100
+atmosphereHeight=100
+atmosphereMaxDepth=200
+
+# Density
+weatherScale=500
+maxCloudHeight=25
+maxCloudAltitude=80
+shapeScale=200
+detailScale=50
+detailNoiseWeight=0.15
+shapeNoiseWeights=1,0.625,0.25,0.125
+
+# Ray Marching
+cloudMaxSteps=128
+
+# Lighting
+lightDirection=-0.08,0.35,1
+lightColor=1,1,1
+phaseG=0.95
+scatteringColor=0.8,0.9,1
+absorptionColor=0.05,0.05,0.05
+ambientColor=1,1,1
+ambientIntensity=1.3
+precipitation=1
+lightMaxSteps=3
+
+# Noise Generation
+shapeOctaves=2,4,8
+detailOctaves=8,16,32
+perlinScale=1
+invertWorleyShape=1
+invertWorleyDetail=1
+
+# Weather Map
+coverageScale=3
+heightScale=1.5
+altitudeScale=1
+coverageMin=0.4
+coverageMax=0.7
+altitudePointCount=3
+altitudeBlobMinRadius=0.05
+altitudeBlobMaxRadius=0.15
+# Skybox
+skyboxName=Mountains
