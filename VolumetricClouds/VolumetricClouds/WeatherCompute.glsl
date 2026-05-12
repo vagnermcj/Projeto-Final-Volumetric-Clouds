@@ -102,13 +102,11 @@ void main()
 
     // ── Canal R: Coverage ──────────────────────────────
     float coverage = perlinFBM2D(uv, coverageScale);
-    coverage = smoothstep(coverageMin, coverageMax, coverage);
 
     // ── Canal G: Height ────────────────────────────────
     // Offset no UV garante que não correlaciona com coverage
     float height = perlinFBM2D(uv , heightScale);
     
-    height = smoothstep(coverageMin, coverageMax, height);
 
     // ── Canal B: Altitude ──────────────────────────────
     float altitude = perlinFBM2D(uv , heightScale);

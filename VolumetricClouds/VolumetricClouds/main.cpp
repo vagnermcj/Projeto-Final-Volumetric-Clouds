@@ -145,11 +145,11 @@ int main()
     float weatherScale = 500.0f;
     float maxCloudHeight = 25.0f;
     float maxCloudAltitude = 80.0f;
-    float detailNoiseWeight = 0.15f;
+    float erosionValue = 0.65f;
     glm::vec4 shapeNoiseWeights(1.0f, 0.625f, 0.25f, 0.125f);
     float shapeScale = 200.0f; //Ainda na duvida entre 500 ou 0.001f
 	float detailScale = 50.0f; //Ainda na duvida entre 500 ou 0.001f
-    int cloudMaxSteps = 128;
+    int cloudMaxSteps = 40;
 
     // ─── Parâmetros do Weather Map ────────────────────────────────────────────
     float coverageScale = 3.0f;
@@ -235,7 +235,7 @@ int main()
         rayMarchingProgram.SetUniform("weatherScale", weatherScale);
         rayMarchingProgram.SetUniform("maxCloudHeight", maxCloudHeight);
         rayMarchingProgram.SetUniform("maxCloudAltitude", maxCloudAltitude);
-        rayMarchingProgram.SetUniform("detailNoiseWeight", detailNoiseWeight);
+        rayMarchingProgram.SetUniform("detailNoiseWeight", erosionValue);
         rayMarchingProgram.SetUniform("shapeNoiseWeights", shapeNoiseWeights);
         rayMarchingProgram.SetUniform("shapeScale", shapeScale);
         rayMarchingProgram.SetUniform("detailScale", detailScale);
@@ -331,19 +331,6 @@ int main()
             if (ImGui::DragFloat("Coverage Scale", &coverageScale, 0.1f, 1.0f, 16.0f)) needsUpdate = true;
             if (ImGui::DragFloat("Height Scale", &heightScale, 0.1f, 1.0f, 16.0f)) needsUpdate = true;
             if (ImGui::DragFloat("Altitude Scale", &altitudeScale, 0.1f, 1.0f, 16.0f)) needsUpdate = true;
-            if (ImGui::DragFloat("Coverage Min", &coverageMin, 0.01f, 0.0f, 1.0f)) needsUpdate = true;
-            if (ImGui::DragFloat("Coverage Max", &coverageMax, 0.01f, 0.0f, 1.0f)) needsUpdate = true;
-            ImGui::SeparatorText("Altitude Blobs");
-            ImGui::DragFloat("Blob Min Radius", &altitudeBlobMinRadius, 0.01f, 0.01f, 0.5f);
-            ImGui::DragFloat("Blob Max Radius", &altitudeBlobMaxRadius, 0.01f, 0.01f, 0.5f);
-            if (ImGui::DragInt("Point Count", &altitudePointCount, 1, 1, 64)) {
-                generateAltitudePoints(altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius);
-                needsUpdate = true;
-            }
-            if (ImGui::Button("Randomize")) {
-                generateAltitudePoints(altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius);
-                needsUpdate = true;
-            }
             break;
         }
         ImGui::End();
@@ -366,7 +353,7 @@ int main()
         ImGui::DragFloat("Max Cloud Altitude", &maxCloudAltitude, 0.5f, 0.0f, atmosphereHeight);
         ImGui::DragFloat("Shape Scale", &shapeScale, 0.1f, 0.1f);
         ImGui::DragFloat("Detail Scale", &detailScale, 0.1f, 0.1f);
-        ImGui::DragFloat("Erosion Weight", &detailNoiseWeight, 0.01f, 0.0f, 1.0f);
+        ImGui::DragFloat("Erosion Weight", &erosionValue, 0.01f, 0.0f, 1.0f);
 
         ImGui::SeparatorText("Ray Marching");
         ImGui::DragInt("Max Steps", &cloudMaxSteps, 1, 1, 512);
@@ -427,7 +414,7 @@ int main()
                 planetRadius, atmosphereStart, atmosphereHeight, atmosphereMaxDepth,
                 // Densidade
                 weatherScale, maxCloudHeight, maxCloudAltitude, shapeScale, detailScale,
-                detailNoiseWeight, shapeNoiseWeights,
+                erosionValue, shapeNoiseWeights,
                 // Ray Marching
                 cloudMaxSteps,
                 // Iluminação
@@ -471,7 +458,7 @@ int main()
                     planetRadius, atmosphereStart, atmosphereHeight, atmosphereMaxDepth,
                     // Densidade
                     weatherScale, maxCloudHeight, maxCloudAltitude, shapeScale, detailScale,
-                    detailNoiseWeight, shapeNoiseWeights,
+                    erosionValue, shapeNoiseWeights,
                     // Ray Marching
                     cloudMaxSteps,
                     // Iluminação
