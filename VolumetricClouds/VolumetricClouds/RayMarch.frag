@@ -39,6 +39,14 @@ uniform float precipitation;
 uniform float silver_intensity;
 uniform float silver_spread;
 
+// ─── Performance Benchmark Controls ───────────────────────────────────────────
+uniform bool enableDetailErosion;
+uniform bool enableLightMarching;
+uniform bool enableBeersLaw;
+uniform bool enablePowderEffect;
+uniform bool enablePhaseFunction;
+uniform bool enableSilverSheen;
+
 // ─── Vento / Tempo ────────────────────────────────────────────────────────────
 uniform vec3  windDirection;
 uniform float windSpeed;
@@ -199,11 +207,13 @@ float cloudDensity(vec3 p, bool light = false)
     if(density < 0.01) return 0.0;
 
     // Erosão
-    float detail = getCloudDetail(p);
-    float oneMinusShape = 1.0 - shape;
-    float erodeWeight   = oneMinusShape * oneMinusShape * oneMinusShape;
-    float detailFBM     = detail;
-    density            -= detailFBM * erodeWeight * detailNoiseWeight;
+    if (enableDetailErosion) {
+        float detail = getCloudDetail(p);
+        float oneMinusShape = 1.0 - shape;
+        float erodeWeight   = oneMinusShape * oneMinusShape * oneMinusShape;
+        float detailFBM     = detail;
+        density            -= detailFBM * erodeWeight * detailNoiseWeight;
+    }
 
     return density;
 }
@@ -250,7 +260,10 @@ vec3 rayMarch(vec3 ro, vec3 rd)
     float transmittance = 1.0;
     vec3  scatteredLight = vec3(0.0);
     float cosTheta = dot(normalize(lightDirection), normalize(rd));
-    float phaseValue = max(HG(cosTheta, phaseG), silver_intensity * HG(cosTheta, 0.99 - silver_spread));
+
+    float basePhaseFn = HG(cosTheta, phaseG);
+    float silverPhaseFn = enableSilverSheen ? (silver_intensity * HG(cosTheta, 0.99 - silver_spread)) : 0.0;
+    float phaseValue = max(basePhaseFn, silverPhaseFn);
 
     for (int i = 0; i < cloudMaxSteps; i++) 
     {
@@ -263,10 +276,20 @@ vec3 rayMarch(vec3 ro, vec3 rd)
 
         if (cloudDens > 0.01)
         {
-            float densityToLight = lightMarching(p);
-            float beersLaw = max(exp(-densityToLight), exp(-densityToLight * 0.25) * 0.7);
-            float powderEffect = 1.0 - exp(-densityToLight * 2.0);
-            float energy = beersLaw * phaseValue * powderEffect;
+            float densityToLight = enableLightMarching ? lightMarching(p) : 0.0;
+
+            float beersLaw = 1.0;
+            if (enableBeersLaw) {
+                beersLaw = max(exp(-densityToLight), exp(-densityToLight * 0.25) * 0.7);
+            }
+
+            float powderEffect = 1.0;
+            if (enablePowderEffect) {
+                powderEffect = 1.0 - exp(-densityToLight * 2.0);
+            }
+
+            float phaseComponent = enablePhaseFunction ? phaseValue : 1.0;
+            float energy = beersLaw * phaseComponent * powderEffect;
 
             float altitude = altitudeOf(p) - atmosphereStart;
             float heightFraction = clamp(altitude / atmosphereHeight, 0.0, 1.0);

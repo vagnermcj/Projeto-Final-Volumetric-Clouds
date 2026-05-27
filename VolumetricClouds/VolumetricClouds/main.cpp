@@ -149,6 +149,14 @@ int main()
     float cloudTopType = 0.6f;
     float cloudBottomType = 0.5f;
 
+    // ─── Performance Benchmark Controls ───────────────────────────────────────
+    bool enableDetailErosion = true;
+    bool enableLightMarching = true;
+    bool enableBeersLaw = true;
+    bool enablePowderEffect = true;
+    bool enablePhaseFunction = true;
+    bool enableSilverSheen = true;
+
     // ─── Parâmetros do Weather Map ────────────────────────────────────────────
     float coverageScale = 3.0f;
     float heightScale = 1.5f;
@@ -250,6 +258,14 @@ int main()
 		rayMarchingProgram.SetUniform("scatteringCoef", scatteringCoef);
         rayMarchingProgram.SetUniform("ambientIntensity", ambientIntensity);
         rayMarchingProgram.SetUniform("precipitation", precipitation);
+
+        // Uniforms — Performance Benchmark Controls
+        rayMarchingProgram.SetUniform("enableDetailErosion", enableDetailErosion);
+        rayMarchingProgram.SetUniform("enableLightMarching", enableLightMarching);
+        rayMarchingProgram.SetUniform("enableBeersLaw", enableBeersLaw);
+        rayMarchingProgram.SetUniform("enablePowderEffect", enablePowderEffect);
+        rayMarchingProgram.SetUniform("enablePhaseFunction", enablePhaseFunction);
+        rayMarchingProgram.SetUniform("enableSilverSheen", enableSilverSheen);
 
         // Uniforms — Vento / Tempo
         rayMarchingProgram.SetUniform("windDirection", windDirection);
@@ -490,6 +506,59 @@ int main()
                 selectedPreset = 0; // volta para Default
             }
         }
+
+        ImGui::End();
+
+        // ─── Performance Benchmark Window ─────────────────────────────────────
+        ImGui::Begin("Performance Benchmark");
+
+        ImGui::SeparatorText("Frame Statistics");
+        ImGui::Text("FPS: %.1f", io.Framerate);
+        ImGui::Text("Frame Time: %.3f ms", 1000.0f / io.Framerate);
+        static int frameCount = 0;
+        frameCount++;
+        ImGui::Text("Frame Count: %d", frameCount);
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Technique Toggle");
+        ImGui::Text("Enable/Disable techniques to measure impact:");
+        ImGui::Separator();
+
+        ImGui::Checkbox("##DetailErosion", &enableDetailErosion);
+        ImGui::SameLine();
+        ImGui::Text("Detail Erosion (high impact)");
+
+        ImGui::Checkbox("##LightMarching", &enableLightMarching);
+        ImGui::SameLine();
+        ImGui::Text("Light Marching (very high impact)");
+
+        ImGui::Checkbox("##BeersLaw", &enableBeersLaw);
+        ImGui::SameLine();
+        ImGui::Text("Beer's Law (high impact)");
+
+        ImGui::Checkbox("##PowderEffect", &enablePowderEffect);
+        ImGui::SameLine();
+        ImGui::Text("Powder Effect (medium impact)");
+
+        ImGui::Checkbox("##PhaseFunction", &enablePhaseFunction);
+        ImGui::SameLine();
+        ImGui::Text("Phase Function (medium impact)");
+
+        ImGui::Checkbox("##SilverSheen", &enableSilverSheen);
+        ImGui::SameLine();
+        ImGui::Text("Silver Sheen (low impact)");
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Text("Current Configuration:");
+        int activeCount = 0;
+        if (enableDetailErosion) activeCount++;
+        if (enableLightMarching) activeCount++;
+        if (enableBeersLaw) activeCount++;
+        if (enablePowderEffect) activeCount++;
+        if (enablePhaseFunction) activeCount++;
+        if (enableSilverSheen) activeCount++;
+        ImGui::Text("Active Techniques: %d/6", activeCount);
 
         ImGui::End();
 
