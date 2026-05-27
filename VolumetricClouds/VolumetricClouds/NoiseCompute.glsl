@@ -13,10 +13,11 @@ uniform bool  isShape;
 uniform float perlinScale = 4.0;
 uniform bool invertWorley;
 
-// ─────────────────────────────────────────────
-//  WORLEY NOISE  (já invertido: 1 = perto do feature point)
-//  Isso gera formato de nuvem "billowing" diretamente.
-// ─────────────────────────────────────────────
+float remap(float v, float s1, float e1, float s2, float e2)
+{
+    return s2 + (e2 - s2) * clamp((v - s1) / (e1 - s1), 0.0, 1.0);
+}
+
 float worley(vec3 uvw, int cells, int bufferOffset)
 {
     vec3  p        = uvw * float(cells);
@@ -46,10 +47,6 @@ float worley(vec3 uvw, int cells, int bufferOffset)
     return invertWorley? 1.0 - val : val;
 }
 
-// ─────────────────────────────────────────────
-//  PERLIN NOISE  (gradient noise, suave e natural)
-//  Substitui o hash anterior que gerava ruído sem estrutura.
-// ─────────────────────────────────────────────
 
 vec3 gradHash(vec3 p, float period)
 {
@@ -88,7 +85,7 @@ float perlinFBM(vec3 p)
 {
     float value     = 0.0;
     float amplitude = 0.5;
-    float frequency = 1.0;
+    float frequency = 2.0;
 
     for (int o = 0; o < 4; o++) {
         // O período precisa ser inteiro e igual à frequência
@@ -112,13 +109,19 @@ void main()
 
     vec3 uvw = vec3(id) / vec3(res);
 
+    float p = perlinFBM(uvw * perlinScale);
     float w1 = worley(uvw, numCells.x, offsets.x);
     float w2 = worley(uvw, numCells.y, offsets.y);
     float w3 = worley(uvw, numCells.z, offsets.z);
+    float worleyFBM = w1 * 0.625 + w2 * 0.25 + w3 * 0.125;
+    float perlinWorley = remap(p, 1.0 - worleyFBM, 1.0, 0.0, 1.0);
+
+    w1 = remap(p, 1.0 - w1, 1.0, 0.0, 1.0);
+    w2 = remap(p, 1.0 - w2, 1.0, 0.0, 1.0);
+    w3 = remap(p, 1.0 - w3, 1.0, 0.0, 1.0);
 
     if (isShape) {
-        float p = perlinFBM(uvw * perlinScale);
-        imageStore(outNoiseTex, id, vec4(p, w1, w2, w3));
+        imageStore(outNoiseTex, id, vec4(perlinWorley, w1, w2, w3));
     } else {
         imageStore(outNoiseTex, id, vec4(w1, w2, w3, 1.0));
     }

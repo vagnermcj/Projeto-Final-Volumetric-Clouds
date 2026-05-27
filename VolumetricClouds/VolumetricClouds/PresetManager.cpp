@@ -28,9 +28,8 @@ CloudPreset PresetManager::getDefaultPreset() {
         def.lightDirection = glm::vec3(-0.08f, 0.35f, 1.0f);
         def.lightColor = glm::vec3(1.0f);
         def.phaseG = 0.95f;
-        def.scatteringColor = glm::vec3(0.8f, 0.9f, 1.0f);
-        def.absorptionColor = glm::vec3(0.05f, 0.05f, 0.05f);
-        def.ambientColor = glm::vec3(1.0f, 1.0f, 1.0f);
+		def.scatteringCoefficient = 0.01f;
+		def.extinctionCoefficient = 0.01f;
         def.ambientIntensity = 1.3f;
         def.precipitation = 1.0f;
         def.lightMaxSteps = 3;
@@ -44,11 +43,6 @@ CloudPreset PresetManager::getDefaultPreset() {
         def.coverageScale = 3.0f;
         def.heightScale = 1.5f;
         def.altitudeScale = 1.0f;
-        def.coverageMin = 0.4f;
-        def.coverageMax = 0.7f;
-        def.altitudePointCount = 3;
-        def.altitudeBlobMinRadius = 0.05f;
-        def.altitudeBlobMaxRadius = 0.15f;
         def.skyboxName = "default";
 
         return def;
@@ -114,9 +108,8 @@ void PresetManager::parseLine(const std::string& line, CloudPreset& preset) {
         else if (key == "lightDirection") preset.lightDirection = parseVec3(value);
         else if (key == "lightColor") preset.lightColor = parseVec3(value);
         else if (key == "phaseG") preset.phaseG = std::stof(value);
-        else if (key == "scatteringColor") preset.scatteringColor = parseVec3(value);
-        else if (key == "absorptionColor") preset.absorptionColor = parseVec3(value);
-        else if (key == "ambientColor") preset.ambientColor = parseVec3(value);
+        else if (key == "scatteringCoefficient") preset.scatteringCoefficient = std::stof(value);
+        else if (key == "extinctionCoefficient") preset.extinctionCoefficient = std::stof(value);
         else if (key == "ambientIntensity") preset.ambientIntensity = std::stof(value);
         else if (key == "precipitation") preset.precipitation = std::stof(value);
         else if (key == "lightMaxSteps") preset.lightMaxSteps = std::stoi(value);
@@ -132,11 +125,6 @@ void PresetManager::parseLine(const std::string& line, CloudPreset& preset) {
         else if (key == "coverageScale") preset.coverageScale = std::stof(value);
         else if (key == "heightScale") preset.heightScale = std::stof(value);
         else if (key == "altitudeScale") preset.altitudeScale = std::stof(value);
-        else if (key == "coverageMin") preset.coverageMin = std::stof(value);
-        else if (key == "coverageMax") preset.coverageMax = std::stof(value);
-        else if (key == "altitudePointCount") preset.altitudePointCount = std::stoi(value);
-        else if (key == "altitudeBlobMinRadius") preset.altitudeBlobMinRadius = std::stof(value);
-        else if (key == "altitudeBlobMaxRadius") preset.altitudeBlobMaxRadius = std::stof(value);
         else if (key == "skyboxName") preset.skyboxName = value;
 }
 
@@ -190,9 +178,8 @@ void PresetManager::savePresetToFile(const CloudPreset& preset, const std::strin
     file << "lightDirection=" << preset.lightDirection.x << "," << preset.lightDirection.y << "," << preset.lightDirection.z << "\n";
     file << "lightColor=" << preset.lightColor.x << "," << preset.lightColor.y << "," << preset.lightColor.z << "\n";
     file << "phaseG=" << preset.phaseG << "\n";
-    file << "scatteringColor=" << preset.scatteringColor.x << "," << preset.scatteringColor.y << "," << preset.scatteringColor.z << "\n";
-    file << "absorptionColor=" << preset.absorptionColor.x << "," << preset.absorptionColor.y << "," << preset.absorptionColor.z << "\n";
-    file << "ambientColor=" << preset.ambientColor.x << "," << preset.ambientColor.y << "," << preset.ambientColor.z << "\n";
+	file << "scatteringCoefficient=" << preset.scatteringCoefficient << "\n";
+	file << "extinctionCoefficient=" << preset.extinctionCoefficient << "\n";
     file << "ambientIntensity=" << preset.ambientIntensity << "\n";
     file << "precipitation=" << preset.precipitation << "\n";
     file << "lightMaxSteps=" << preset.lightMaxSteps << "\n\n";
@@ -208,11 +195,6 @@ void PresetManager::savePresetToFile(const CloudPreset& preset, const std::strin
     file << "coverageScale=" << preset.coverageScale << "\n";
     file << "heightScale=" << preset.heightScale << "\n";
     file << "altitudeScale=" << preset.altitudeScale << "\n";
-    file << "coverageMin=" << preset.coverageMin << "\n";
-    file << "coverageMax=" << preset.coverageMax << "\n";
-    file << "altitudePointCount=" << preset.altitudePointCount << "\n";
-    file << "altitudeBlobMinRadius=" << preset.altitudeBlobMinRadius << "\n";
-    file << "altitudeBlobMaxRadius=" << preset.altitudeBlobMaxRadius << "\n";
 
     file << "# Skybox\n";
     file << "skyboxName=" << preset.skyboxName << "\n";
@@ -253,12 +235,11 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
         float dtlWeight, const glm::vec4& shpWeights,
         int cloudSteps,
         const glm::vec3& lightDir, const glm::vec3& lightCol, float phase,
-        const glm::vec3& scatCol, const glm::vec3& absCol, const glm::vec3& ambCol,
+	    float scatCoef, float extCoef,
         float ambInt, float precip, int lightSteps,
         const glm::ivec3& shpOct, const glm::ivec3& dtlOct, float pScale,
         bool invWorleyShp, bool invWorleyDtl,
-        float covScale, float hScale, float altScale, float covMin, float covMax,
-        int altCount, float altMinR, float altMaxR, const std::string& skyboxName)
+        float covScale, float hScale, float altScale, const std::string& skyboxName)
 {
         CloudPreset preset;
         preset.name = name;
@@ -279,10 +260,8 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
         preset.lightDirection = lightDir;
         preset.lightColor = lightCol;
         preset.phaseG = phase;
-        preset.scatteringColor = scatCol;
-        preset.absorptionColor = absCol;
-        preset.ambientColor = ambCol;
-        preset.ambientIntensity = ambInt;
+		preset.scatteringCoefficient = scatCoef;
+		preset.extinctionCoefficient = extCoef;
         preset.precipitation = precip;
         preset.lightMaxSteps = lightSteps;
         preset.shapeOctaves = shpOct;
@@ -293,11 +272,6 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
         preset.coverageScale = covScale;
         preset.heightScale = hScale;
         preset.altitudeScale = altScale;
-        preset.coverageMin = covMin;
-        preset.coverageMax = covMax;
-        preset.altitudePointCount = altCount;
-        preset.altitudeBlobMinRadius = altMinR;
-        preset.altitudeBlobMaxRadius = altMaxR;
         preset.skyboxName = skyboxName;
 
     // Salva em arquivo
@@ -321,14 +295,13 @@ void PresetManager::applyPreset(int index,
         int& cloudSteps,
         // Iluminação
         glm::vec3& lightDir, glm::vec3& lightCol, float& phase,
-        glm::vec3& scatCol, glm::vec3& absCol, glm::vec3& ambCol,
+        float& scattCoef, float& extCoef,
         float& ambInt, float& precip, int& lightSteps,
         // Noise
         glm::ivec3& shpOct, glm::ivec3& dtlOct, float& pScale,
         bool& invWorleyShp, bool& invWorleyDtl,
         // Weather
-        float& covScale, float& hScale, float& altScale, float& covMin, float& covMax,
-        int& altCount, float& altMinR, float& altMaxR, std::string& skyboxName)
+        float& covScale, float& hScale, float& altScale, std::string& skyboxName)
 {
     if (index < 0 || index >= presets.size()) return;
 
@@ -351,9 +324,8 @@ void PresetManager::applyPreset(int index,
     lightDir = p.lightDirection;
     lightCol = p.lightColor;
     phase = p.phaseG;
-    scatCol = p.scatteringColor;
-    absCol = p.absorptionColor;
-    ambCol = p.ambientColor;
+	scattCoef = p.scatteringCoefficient;
+	extCoef = p.extinctionCoefficient;
     ambInt = p.ambientIntensity;
     precip = p.precipitation;
     lightSteps = p.lightMaxSteps;
@@ -365,11 +337,6 @@ void PresetManager::applyPreset(int index,
     covScale = p.coverageScale;
     hScale = p.heightScale;
     altScale = p.altitudeScale;
-    covMin = p.coverageMin;
-    covMax = p.coverageMax;
-    altCount = p.altitudePointCount;
-    altMinR = p.altitudeBlobMinRadius;
-    altMaxR = p.altitudeBlobMaxRadius;
 	skyboxName = p.skyboxName;
 }
 

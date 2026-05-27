@@ -27,13 +27,17 @@ uniform float detailScale;
 // ─── Iluminação ───────────────────────────────────────────────────────────────
 uniform vec3  lightDirection;
 uniform vec3  lightColor;
+uniform vec3  ambientColor;
+uniform float cloudTopType;
+uniform float cloudBottomType;
 uniform int   lightSteps;
+uniform float extinctionCoef;
+uniform float scatteringCoef;
 uniform float phaseG;
-uniform vec3 scatteringColor;
-uniform vec3 absorptionColor;
-uniform vec3 ambientColor;
 uniform float ambientIntensity;
 uniform float precipitation;
+uniform float silver_intensity;
+uniform float silver_spread;
 
 // ─── Vento / Tempo ────────────────────────────────────────────────────────────
 uniform vec3  windDirection;
@@ -46,6 +50,8 @@ uniform sampler3D  detailNoise;
 uniform sampler2D  weatherMap;
 uniform samplerCube skybox;
 
+float dimensionalProfile = 1.0;
+
 // ═════════════════════════════════════════════════════════════════════════════
 //  Utilitários
 // ═════════════════════════════════════════════════════════════════════════════
@@ -56,7 +62,7 @@ float remap(float v, float s1, float e1, float s2, float e2) {
 
 float HG(float cosTheta, float g) {
     float g2 = g * g;
-    return (1.0 - g2) / (4.0 * 3.14159265 * pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5));
+    return ((1.0 - g2) / pow((1.0 + g2 - 2.0 * g * cosTheta), 3.0 / 2.0)) / (4.0 * 3.14159265);
 }
 
 float rand(vec2 co) {
@@ -77,112 +83,6 @@ vec2 weatherUV(vec3 p) {
     return vec2(p.x, p.z) / weatherScale
          + vec2(windDirection.x, windDirection.z) * time * windSpeed;
 }
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  §5 Densidade
-// ═════════════════════════════════════════════════════════════════════════════
-
-float getCloudShape(vec3 p)
-{
-    // UVW escalado + offset de vento para o shape
-    vec3 shapeUVW = (p / shapeScale) + windDirection * time * windSpeed * 0.95;
-
-    vec4 noise = texture(shapeNoise, shapeUVW);
-
-    float perlin    = noise.r * shapeNoiseWeights.r;
-    float worleyFBM = noise.g * shapeNoiseWeights.g + noise.b * shapeNoiseWeights.b 
-                              + noise.a * shapeNoiseWeights.a;
-
-    return perlin * worleyFBM;
-}
-
-float getCloudDetail(vec3 p)
-{
-    vec3 detailUVW = (p / detailScale) + windDirection * time * windSpeed * 1.2;
-
-    vec3 s = texture(detailNoise, detailUVW).rgb;
-    return s.r * 0.625 + s.g * 0.25 + s.b * 0.125;
-}
-
-// §5.1 — Height Signal: parábola que define onde a nuvem existe verticalmente
-float HeightSignal(vec3 p, float height, float altitude)
-{
-    float x             = altitudeOf(p) - atmosphereStart;
-    float oneOverHeight = 1.0 / (height * height);
-    float signal        = (x - altitude) * (x - altitude - height) * (oneOverHeight * -4.0);
-    return clamp(signal, 0.0, 1.0);
-}
-
-// Height Gradient: nuvem mais densa no topo, mais fina na base
-float HeightGradient(vec3 p, float height, float altitude)
-{
-    float x              = altitudeOf(p) - atmosphereStart;
-    float heightPercent  = clamp((x - altitude) / height, 0.0, 1.0);
-    return remap(heightPercent, 0.0, 1.0, 0.1, 1.0);
-}
-
-float cloudDensity(vec3 p)
-{
-    float dist = length(p - planetCenter());
-    if (dist < innerCloudRadius || dist > outerCloudRadius) return 0.0; //Check atmosphere bounds
-
-    vec3  weather  = texture(weatherMap, weatherUV(p)).rgb;
-    float density = weather.r;
-
-    float height   = weather.g * maxCloudHeight;
-    float altitude = weather.b * maxCloudAltitude;
-    
-
-    // §4.1 — sequência exata do paper
-    density      *= HeightSignal(p, height, altitude);
-    if (density < 0.001) return 0.0;
-
-    float shape = getCloudShape(p);
-    density      *= shape; 
-    if (density <= 0.0) return 0.0;
-
-    // Erosão
-    float detail = getCloudDetail(p);
-    float oneMinusShape = 1.0 - shape;
-    float erodeWeight   = oneMinusShape * oneMinusShape * oneMinusShape;
-    float detailFBM     = detail;
-    density            -= detailFBM * erodeWeight * detailNoiseWeight;
-    
-
-    density *= HeightGradient(p, height, altitude);
-    return clamp(density, 0.0, 1.0);
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  §5.2 Iluminação — Light Marching
-// ═════════════════════════════════════════════════════════════════════════════
-
-vec3 lightMarching(vec3 pos)
-{
-    vec3 totalExtinction = vec3(0.0);
-    float stepSize = 1.0;
-
-    vec3 sigmaE = scatteringColor + absorptionColor;
-
-    for (int i = 0; i < lightSteps; i++)
-    {
-        vec3 p = pos + lightDirection * stepSize * float(i + 1);
-        float dist = length(p - planetCenter());
-
-        if (dist > outerCloudRadius || dist < innerCloudRadius)
-            break;
-
-        float density = max(0.0, cloudDensity(p));
-        totalExtinction += sigmaE * density * stepSize;
-        stepSize *= 1.1;
-    }
-
-    return exp(-totalExtinction);
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-//  §5.3 Ray Marching — Casca esférica
-// ═════════════════════════════════════════════════════════════════════════════
 
 vec2 raySphereIntersect(vec3 ro, vec3 rd, float radius)
 {
@@ -230,6 +130,108 @@ vec2 getAtmosphereRange(vec3 ro, vec3 rd)
     return vec2(max(tStart, 0.0), tEnd);
 }
 
+
+float getCloudShape(vec3 p)
+{
+    // UVW escalado + offset de vento para o shape
+    vec3 shapeUVW = (p / shapeScale) + windDirection * time * windSpeed * 0.95;
+
+    vec4 noise = texture(shapeNoise, shapeUVW);
+
+    float perlinWorley    = noise.r * shapeNoiseWeights.r;
+
+    return perlinWorley;
+}
+
+float getCloudDetail(vec3 p)
+{
+    vec3 detailUVW = (p / detailScale) + windDirection * time * windSpeed * 1.2;
+
+    vec3 s = texture(detailNoise, detailUVW).rgb;
+    return s.r * 0.625 + s.g * 0.25 + s.b * 0.125;
+}
+
+float bottomTypeProfile(float h, float x)
+{
+    float curve = 0.05 * x + 0.2;
+    //float bottomType = h < curve? 0.0 : clamp((h - 0.4) / 0.6, 0.0, 1.0);
+    float bottomType = clamp((h - curve) / (1.0 - curve), 0.0, 1.0);
+    return bottomType;
+}
+
+float topTypeProfile(float h, float x)
+{
+    float curve = ((pow((x - 0.25) * 2.0, 3.0))/0.1) + 0.6;
+
+    float gradient = 1.0 - clamp((h - 0.2) / 0.8, 0.0, 1.0);
+
+    float topGradient = h < 0.2 ? gradient : h > curve ? 0.0 : gradient;
+
+    return topGradient;
+}
+
+
+
+float cloudDensity(vec3 p, bool light = false)
+{
+    float dist = length(p - planetCenter());
+    if (dist < innerCloudRadius || dist > outerCloudRadius) return 0.0; //Check atmosphere bounds
+
+    vec2  weather  = texture(weatherMap, weatherUV(p)).rg;
+    float coverage = weather.r;
+
+    if(coverage < 0.01) return 0.0; 
+
+
+    float topType = topTypeProfile(altitudeOf(p)/atmosphereHeight, cloudTopType);
+    float botType = bottomTypeProfile(altitudeOf(p)/atmosphereHeight, cloudBottomType);
+    float verticalProfile = topType * botType;
+    dimensionalProfile = coverage * verticalProfile;
+
+    if(dimensionalProfile < 0.01) return 0.0;
+    if(light) return dimensionalProfile;
+
+    float density = dimensionalProfile;
+
+    float shape = getCloudShape(p);
+    density *= shape;
+
+    if(density < 0.01) return 0.0;
+
+    // Erosão
+    float detail = getCloudDetail(p);
+    float oneMinusShape = 1.0 - shape;
+    float erodeWeight   = oneMinusShape * oneMinusShape * oneMinusShape;
+    float detailFBM     = detail;
+    density            -= detailFBM * erodeWeight * detailNoiseWeight;
+
+    return density;
+}
+
+// ════════════════════════════════════════
+//  Light Marching
+// ════════════════════════════════════════
+
+float lightMarching(vec3 pos)
+{
+    float totalDensity = 0.0;
+    float stepSize = (outerCloudRadius - innerCloudRadius) / float(lightSteps) * 2.0;
+
+    for (int i = 0; i < lightSteps; i++)
+    {
+        vec3  p    = pos + normalize(lightDirection) * stepSize * float(i + 1);
+        float dist = length(p - planetCenter());
+
+        if (dist > outerCloudRadius || dist < innerCloudRadius) break;
+
+        totalDensity += max(0.0, cloudDensity(p, true)) * stepSize;
+        stepSize     *= 1.5;
+    }
+
+    return totalDensity;    
+}
+
+
 vec3 rayMarch(vec3 ro, vec3 rd)
 {
     vec3 skyColor = texture(skybox, rd).rgb;
@@ -245,61 +247,44 @@ vec3 rayMarch(vec3 ro, vec3 rd)
     float jitter    = rand(gl_FragCoord.xy) * stepSize;
     float t         = tStart + jitter;
 
-    vec3 transmittance = vec3(1.0);
-    vec3 lightEnergy   = vec3(0.0);
+    float transmittance = 1.0;
+    vec3  scatteredLight = vec3(0.0);
+    float cosTheta = dot(normalize(lightDirection), normalize(rd));
+    float phaseValue = max(HG(cosTheta, phaseG), silver_intensity * HG(cosTheta, 0.99 - silver_spread));
 
-    vec3 sigmaS = scatteringColor;
-    vec3 sigmaA = absorptionColor;
-    vec3 sigmaE = sigmaS + sigmaA;
-
-    for (int i = 0; i < cloudMaxSteps; i++)
+    for (int i = 0; i < cloudMaxSteps; i++) 
     {
-        if (t >= tEnd || dot(transmittance, vec3(0.333)) < 0.01)
-            break;
+        if (t >= tEnd || transmittance < 0.1) break;
 
-        vec3 p = ro + rd * t;
-        if (p.y < 0.0) return skyColor;
+        vec3  p         = ro + rd * t;
+        if (p.y < 0.0) break;
 
         float cloudDens = cloudDensity(p);
 
-        if (cloudDens < 0.001)
+        if (cloudDens > 0.01)
         {
-            t += stepSize * 1.5;
-            continue;
+            float densityToLight = lightMarching(p);
+            float beersLaw = max(exp(-densityToLight), exp(-densityToLight * 0.25) * 0.7);
+            float powderEffect = 1.0 - exp(-densityToLight * 2.0);
+            float energy = beersLaw * phaseValue * powderEffect;
+
+            float altitude = altitudeOf(p) - atmosphereStart;
+            float heightFraction = clamp(altitude / atmosphereHeight, 0.0, 1.0);
+            
+            vec3 ambient = mix(skyColor, ambientColor, 0.6) * ambientIntensity * (1.0 - cloudDens);
+
+            vec3 direct = lightColor;
+            vec3 S = (direct * energy + ambient ) * cloudDens;
+
+            scatteredLight += transmittance * S * stepSize;
+            transmittance *= exp(-cloudDens * extinctionCoef * stepSize);
         }
 
-        vec3 sampleSigmaS = sigmaS * cloudDens;
-        vec3 sampleSigmaE = sigmaE * cloudDens;
-
-        vec3 lightT = lightMarching(p);
-
-        float cosTheta   = dot(normalize(lightDirection), rd);
-        float phaseVal   = HG(cosTheta, phaseG);
-        float powder     = 1.0 - exp(-cloudDens * 2.0);
-
-        vec3 weather = texture(weatherMap, weatherUV(p)).rgb;
-        float cloudHeight   = weather.g * maxCloudHeight;
-        float cloudAltitude = weather.b * maxCloudAltitude;
-        float gradient = HeightGradient(p, cloudHeight, cloudAltitude);
-
-        vec3 ambient     = gradient * precipitation * ambientColor * ambientIntensity;
-
-        vec3 directLight = lightColor * lightT * phaseVal * powder;
-        vec3 S           = (directLight + ambient) * sampleSigmaS;
-
-        vec3 Tr   = exp(-sampleSigmaE * stepSize);
-        vec3 Sint = (S - S * Tr) / sampleSigmaE;   
-
-        lightEnergy   += transmittance * Sint;
-        transmittance *= Tr;
-        t             += stepSize;
-
+        t += stepSize;
     }
 
-
-    return lightEnergy + skyColor * transmittance;
+    return scatteredLight + skyColor * transmittance;
 }
-
 // ═════════════════════════════════════════════════════════════════════════════
 //  Main
 // ═════════════════════════════════════════════════════════════════════════════

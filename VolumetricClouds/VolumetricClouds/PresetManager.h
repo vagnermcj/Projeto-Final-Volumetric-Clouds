@@ -36,9 +36,8 @@ struct CloudPreset {
     glm::vec3 lightDirection;
     glm::vec3 lightColor;
     float phaseG;
-    glm::vec3 scatteringColor;
-    glm::vec3 absorptionColor;
-    glm::vec3 ambientColor;
+    float scatteringCoefficient;
+	float extinctionCoefficient;
     float ambientIntensity;
     float precipitation;
     int lightMaxSteps;
@@ -54,11 +53,6 @@ struct CloudPreset {
     float coverageScale;
     float heightScale;
     float altitudeScale;
-    float coverageMin;
-    float coverageMax;
-    int altitudePointCount;
-    float altitudeBlobMinRadius;
-    float altitudeBlobMaxRadius;
 
     // Skybox
     std::string skyboxName;
@@ -82,21 +76,19 @@ public:
         float dtlWeight, const glm::vec4& shpWeights,
         int cloudSteps,
         const glm::vec3& lightDir, const glm::vec3& lightCol, float phase,
-        const glm::vec3& scatCol, const glm::vec3& absCol, const glm::vec3& ambCol,
+		float scattCoef, float extCoef,
         float ambInt, float precip, int lightSteps,
         const glm::ivec3& shpOct, const glm::ivec3& dtlOct, float pScale,
         bool invWorleyShp, bool invWorleyDtl,
-        float covScale, float hScale, float altScale, float covMin, float covMax,
-        int altCount, float altMinR, float altMaxR, const std::string& skyboxName);
+        float covScale, float hScale, float altScale, const std::string& skyboxName);
 	void applyPreset(int index, glm::vec3& windDir, float& windSpd,
 		float& pRadius, float& atmStart, float& atmHeight, float& atmDepth,
 		float& wScale, float& maxHeight, float& maxAlt, float& shpScale, float& dtlScale,
 		float& dtlWeight, glm::vec4& shpWeights, int& cloudSteps,
 		glm::vec3& lightDir, glm::vec3& lightCol, float& phase,
-		glm::vec3& scatCol, glm::vec3& absCol, glm::vec3& ambCol,
+		float& scattCoef, float& extCoef,    
 		float& ambInt, float& precip, int& lightSteps, glm::ivec3& shpOct, glm::ivec3& dtlOct, float& pScale,
-		bool& invWorleyShp, bool& invWorleyDtl, float& covScale, float& hScale, float& altScale, float& covMin, float& covMax,
-		int& altCount, float& altMinR, float& altMaxR, std::string& skyboxName);
+		bool& invWorleyShp, bool& invWorleyDtl, float& covScale, float& hScale, float& altScale, std::string& skyboxName);
 	void deletePreset(int index);
 	std::vector<const char*> getPresetNames();
 	int getPresetCount();

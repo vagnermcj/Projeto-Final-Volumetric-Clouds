@@ -36,7 +36,7 @@ Shader* sliceShader;
 Shader* slice2DShader;
 
 glm::ivec3 shapeOctaves(2, 4, 8);
-glm::ivec3 detailOctaves(8, 16, 32);
+glm::ivec3 detailOctaves(8, 12, 16);
 float perlinScale = 1.0f;
 bool needsUpdate = true;
 bool invertWorleyShape = true;
@@ -47,11 +47,6 @@ struct NoiseBufferData {
     glm::ivec3 offsets;
 };
 
-struct AltitudePoint {
-    glm::vec2 position;
-    float     value;
-    float     radius;
-};
 
 // ─── Protótipos ───────────────────────────────────────────────────────────────
 void         initTextures();
@@ -65,7 +60,6 @@ void         dispatchNoiseCompute(Shader& shader, GLuint tex, glm::ivec3 res, gl
 void         dispatchWeatherCompute(Shader& shader, GLuint tex);
 void         renderTexturePreview(Shader& shader, GLuint tex3D, float slice, int channel);
 void         renderTexturePreview2D(Shader& shader, GLuint tex2D, int channel);
-void         generateAltitudePoints(int count, float minR, float maxR);
 unsigned int loadCubemap(std::vector<std::string> faces);
 
 auto ceilDiv = [](int a, int b) { return (a + b - 1) / b; };
@@ -122,11 +116,13 @@ int main()
     // ─── Parâmetros de Iluminação ─────────────────────────────────────────────
     glm::vec3 lightDirection(-0.08f, 0.35f, 1.0f);
     glm::vec3 lightColor(1.0f);
-    float phaseG = 0.95f;
-    glm::vec3 scatteringColor = glm::vec3(0.8f, 0.9f, 1.0f);
-    glm::vec3 absorptionColor = glm::vec3(0.05f, 0.05f, 0.05f);
-    glm::vec3 ambientColor = glm::vec3(1.0f, 1.0f, 1.0f); 
-	float ambientIntensity = 1.3f;
+    glm::vec3 ambientColor(1.0f);
+    float silver_intensity = 0.5f;
+    float silver_spread = 0.5f;
+    float phaseG = 0.6f;
+    float extinctionCoef = 0.9f;
+    float scatteringCoef = 0.2f;
+	float ambientIntensity = 1.0f;
     float precipitation = 1.0f;
     int lightMaxSteps = 3;
 
@@ -137,7 +133,7 @@ int main()
     // ─── Parâmetros da Atmosfera ──────────────────────────────────────────────
     float planetRadius = 6000.0f;
     float atmosphereStart = 100.0f;
-    float atmosphereHeight = 100.0f;
+    float atmosphereHeight = 250.0f;
 	float atmosphereMaxDepth = 200.0f;
     float innerCloudRadius, outerCloudRadius;
 
@@ -145,23 +141,24 @@ int main()
     float weatherScale = 500.0f;
     float maxCloudHeight = 25.0f;
     float maxCloudAltitude = 80.0f;
-    float erosionValue = 0.65f;
+    float erosionValue = 0.05f;
     glm::vec4 shapeNoiseWeights(1.0f, 0.625f, 0.25f, 0.125f);
-    float shapeScale = 200.0f; //Ainda na duvida entre 500 ou 0.001f
-	float detailScale = 50.0f; //Ainda na duvida entre 500 ou 0.001f
+    float shapeScale = 180.0f;
+	float detailScale = 20.0f;
     int cloudMaxSteps = 40;
+    float cloudTopType = 0.6f;
+    float cloudBottomType = 0.5f;
 
     // ─── Parâmetros do Weather Map ────────────────────────────────────────────
     float coverageScale = 3.0f;
     float heightScale = 1.5f;
     float altitudeScale = 1.0f;
-    float coverageMin = 0.4f;
-    float coverageMax = 0.7f;
-    int   altitudePointCount = 3;
-    float altitudeBlobMinRadius = 0.05f;
-    float altitudeBlobMaxRadius = 0.15f;
+    glm::vec2 weatherNoiseOffset(0.0f);
 
-    generateAltitudePoints(altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius);
+    std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+    std::uniform_real_distribution<float> dist(0.0f, 1024.0f);   // range large enough
+    weatherNoiseOffset = glm::vec2(dist(rng), dist(rng));
+    
 
     // Skybox
     unsigned int cubemapTexture = 0;
@@ -197,9 +194,7 @@ int main()
             weatherCompute.SetUniform("coverageScale", coverageScale);
             weatherCompute.SetUniform("heightScale", heightScale);
             weatherCompute.SetUniform("altitudeScale", altitudeScale);
-            weatherCompute.SetUniform("coverageMin", coverageMin);
-            weatherCompute.SetUniform("coverageMax", coverageMax);
-            weatherCompute.SetUniform("altitudePointCount", altitudePointCount);
+            weatherCompute.SetUniform("noiseOffset", weatherNoiseOffset);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssboAltitude);
             dispatchWeatherCompute(weatherCompute, weatherTexture);
 
@@ -233,12 +228,12 @@ int main()
 
         // Uniforms — Densidade
         rayMarchingProgram.SetUniform("weatherScale", weatherScale);
-        rayMarchingProgram.SetUniform("maxCloudHeight", maxCloudHeight);
-        rayMarchingProgram.SetUniform("maxCloudAltitude", maxCloudAltitude);
         rayMarchingProgram.SetUniform("detailNoiseWeight", erosionValue);
         rayMarchingProgram.SetUniform("shapeNoiseWeights", shapeNoiseWeights);
         rayMarchingProgram.SetUniform("shapeScale", shapeScale);
         rayMarchingProgram.SetUniform("detailScale", detailScale);
+        rayMarchingProgram.SetUniform("cloudTopType", cloudTopType);
+        rayMarchingProgram.SetUniform("cloudBottomType", cloudBottomType);
 
         // Uniforms — Ray Marching
         rayMarchingProgram.SetUniform("cloudMaxSteps", cloudMaxSteps);
@@ -246,11 +241,13 @@ int main()
         // Uniforms — Iluminação
         rayMarchingProgram.SetUniform("lightDirection", lightDirection);
         rayMarchingProgram.SetUniform("lightColor", lightColor);
+        rayMarchingProgram.SetUniform("ambientColor", ambientColor);
+        rayMarchingProgram.SetUniform("silver_intensity", silver_intensity);
+        rayMarchingProgram.SetUniform("silver_spread", silver_spread);
         rayMarchingProgram.SetUniform("lightSteps", lightMaxSteps);
         rayMarchingProgram.SetUniform("phaseG", phaseG);
-        rayMarchingProgram.SetUniform("scatteringColor", scatteringColor);
-        rayMarchingProgram.SetUniform("absorptionColor", absorptionColor);
-        rayMarchingProgram.SetUniform("ambientColor", ambientColor);
+		rayMarchingProgram.SetUniform("extinctionCoef", extinctionCoef);
+		rayMarchingProgram.SetUniform("scatteringCoef", scatteringCoef);
         rayMarchingProgram.SetUniform("ambientIntensity", ambientIntensity);
         rayMarchingProgram.SetUniform("precipitation", precipitation);
 
@@ -313,7 +310,7 @@ int main()
 
         ImGui::SeparatorText("Configuration");
         switch (previewTarget) {
-        case 0:
+        case 0: //Shape
             if (previewTarget != 2) ImGui::SliderFloat("Slice Z", &previewSlice, 0.0f, 1.0f);
             if (ImGui::DragInt3("Shape Octaves", glm::value_ptr(shapeOctaves), 1, 2, 64)) needsUpdate = true;
             if (ImGui::DragFloat("Perlin Scale", &perlinScale, 0.1f, 1.0f, 20.0f))        needsUpdate = true;
@@ -321,16 +318,20 @@ int main()
             if (ImGui::Checkbox("Invert Worley", &invertWorleyShape))
                 needsUpdate = true;
             break;
-        case 1:
+        case 1: //Detail
             ImGui::SliderFloat("Slice Z", &previewSlice, 0.0f, 1.0f);
             if (ImGui::DragInt3("Detail Octaves", glm::value_ptr(detailOctaves), 1, 2, 64)) needsUpdate = true;
             if (ImGui::Checkbox("Invert Worley", &invertWorleyDetail))
                 needsUpdate = true;
             break;
-        case 2:
+        case 2: //Weather
             if (ImGui::DragFloat("Coverage Scale", &coverageScale, 0.1f, 1.0f, 16.0f)) needsUpdate = true;
             if (ImGui::DragFloat("Height Scale", &heightScale, 0.1f, 1.0f, 16.0f)) needsUpdate = true;
-            if (ImGui::DragFloat("Altitude Scale", &altitudeScale, 0.1f, 1.0f, 16.0f)) needsUpdate = true;
+            if (ImGui::DragFloat("Altitude Scale", &altitudeScale, 0.1f, 0.0f, 16.0f)) needsUpdate = true;
+            if (ImGui::Button("Randomize Weather Map")) {
+                weatherNoiseOffset = glm::vec2(dist(rng), dist(rng));
+                needsUpdate = true;
+            }
             break;
         }
         ImGui::End();
@@ -349,8 +350,8 @@ int main()
         ImGui::DragFloat("Weather Scale", &weatherScale, 1.0f, 0.1f);
 
         ImGui::SeparatorText("Density");
-        ImGui::DragFloat("Max Cloud Height", &maxCloudHeight, 0.5f, 0.1f, atmosphereHeight);
-        ImGui::DragFloat("Max Cloud Altitude", &maxCloudAltitude, 0.5f, 0.0f, atmosphereHeight);
+        ImGui::DragFloat("Cloud Top Type", &cloudTopType, 0.001f, 0.0f, 1.0f);
+        ImGui::DragFloat("Cloud Bottom Type", &cloudBottomType, 0.001f, 0.0f, 1.0f);
         ImGui::DragFloat("Shape Scale", &shapeScale, 0.1f, 0.1f);
         ImGui::DragFloat("Detail Scale", &detailScale, 0.1f, 0.1f);
         ImGui::DragFloat("Erosion Weight", &erosionValue, 0.01f, 0.0f, 1.0f);
@@ -361,11 +362,13 @@ int main()
         ImGui::SeparatorText("Lighting");
         ImGui::DragFloat3("Light Direction", glm::value_ptr(lightDirection), 0.01f, -1.0f, 1.0f);
         ImGui::ColorEdit3("Light Color", glm::value_ptr(lightColor));
+        ImGui::ColorEdit3("Ambient Color", glm::value_ptr(ambientColor));
         ImGui::DragFloat("Phase Value", &phaseG, 0.01f, 0.0f, 0.999f);
-        ImGui::ColorEdit3("Scattering Color", glm::value_ptr(scatteringColor));
-        ImGui::ColorEdit3("Absorption Color", glm::value_ptr(absorptionColor));
-		ImGui::ColorEdit3("Ambient Color", glm::value_ptr(ambientColor));
+        ImGui::DragFloat("Extinction", &extinctionCoef, 0.01f, 0.0f, 1.0f, "%.4f");
+        ImGui::DragFloat("Scattering", &scatteringCoef, 0.01f, 0.0f, 1.0f, "%.4f");
 		ImGui::DragFloat("Ambient Intensity", &ambientIntensity, 0.01f, 0.1f, 5.0f);
+        ImGui::DragFloat("Silver Intensity", &silver_intensity, 0.01f, 0.0f, 5.0f);
+        ImGui::DragFloat("Silver Spread", &silver_spread, 0.01f, 0.1f, 1.0f);
 		ImGui::DragFloat("Precipitation", &precipitation, 0.01f, 0.01f, 1.0f);
         ImGui::DragInt("Light Steps", &lightMaxSteps, 1, 0, 16);
 
@@ -419,14 +422,13 @@ int main()
                 cloudMaxSteps,
                 // Iluminação
                 lightDirection, lightColor, phaseG,
-                scatteringColor, absorptionColor, ambientColor,
+                scatteringCoef, extinctionCoef,
                 ambientIntensity, precipitation, lightMaxSteps,
                 // Noise
                 shapeOctaves, detailOctaves, perlinScale,
                 invertWorleyShape, invertWorleyDetail,
                 // Weather
-                coverageScale, heightScale, altitudeScale, coverageMin, coverageMax,
-                altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius, currentSkyboxName
+                coverageScale, heightScale, altitudeScale, currentSkyboxName
             );
 
             // Aplicar skybox do preset
@@ -437,8 +439,6 @@ int main()
                 cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
             }
 
-            // Regenerar altitude points e marcar para update
-            generateAltitudePoints(altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius);
             needsUpdate = true;
         }
 
@@ -463,15 +463,13 @@ int main()
                     cloudMaxSteps,
                     // Iluminação
                     lightDirection, lightColor, phaseG,
-                    scatteringColor, absorptionColor, ambientColor,
+					scatteringCoef, extinctionCoef,
                     ambientIntensity, precipitation, lightMaxSteps,
                     // Noise
                     shapeOctaves, detailOctaves, perlinScale,
                     invertWorleyShape, invertWorleyDetail,
                     // Weather
-                    coverageScale, heightScale, altitudeScale, coverageMin, coverageMax,
-                    altitudePointCount, altitudeBlobMinRadius, altitudeBlobMaxRadius,
-                    // Skybox
+                    coverageScale, heightScale, altitudeScale,// Skybox
                     currentSkyboxName 
                 );
 
@@ -602,7 +600,7 @@ void initTextures()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 512, 512, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1024, 1024, 0, GL_RGBA, GL_FLOAT, NULL);
 }
 
 void initTexturePreview()
@@ -660,27 +658,10 @@ void dispatchWeatherCompute(Shader& shader, GLuint tex)
 {
     shader.Activate();
     glBindImageTexture(0, tex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-    glDispatchCompute(ceilDiv(512, 8), ceilDiv(512, 8), 1);
+    glDispatchCompute(ceilDiv(1024, 8), ceilDiv(1024, 8), 1);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
 }
 
-void generateAltitudePoints(int count, float minR, float maxR)
-{
-    std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
-    std::uniform_real_distribution<float> pos(0.0f, 1.0f);
-    std::uniform_real_distribution<float> rad(minR, maxR);
-
-    std::vector<AltitudePoint> points(count);
-    for (auto& p : points) {
-        p.position = glm::vec2(pos(rng), pos(rng));
-        p.value = pos(rng);
-        p.radius = rad(rng);
-    }
-
-    glGenBuffers(1, &ssboAltitude);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboAltitude);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, points.size() * sizeof(AltitudePoint), points.data(), GL_STATIC_DRAW);
-}
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  Preview de Textura
