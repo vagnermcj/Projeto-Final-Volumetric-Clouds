@@ -14,6 +14,10 @@ uniform float atmosphereStart;
 uniform float atmosphereHeight;
 uniform float atmosphereMaxDepth;
 
+//Terrain
+uniform sampler2D depthTex;
+uniform mat4      invProjView;
+
 // ─── Densidade ────────────────────────────────────────────────────────────────
 uniform float weatherScale;
 uniform float maxCloudHeight;
@@ -90,6 +94,17 @@ float altitudeOf(vec3 p) {
 vec2 weatherUV(vec3 p) {
     return vec2(p.x, p.z) / weatherScale
          + vec2(windDirection.x, windDirection.z) * time * windSpeed;
+}
+
+float terrainDepth(vec2 uv)
+{
+    float d = texture(depthTex, uv).r;
+    if (d <= 0.0001 || d >= 0.9999) return 1e9; // sem geometria
+    
+    vec4 ndcPos   = vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+    vec4 worldPos = invProjView * ndcPos;
+    worldPos /= worldPos.w;
+    return length(worldPos.xyz - camPos);
 }
 
 vec2 raySphereIntersect(vec3 ro, vec3 rd, float radius)
@@ -193,7 +208,7 @@ float cloudDensity(vec3 p, bool light = false)
 
     float topType = topTypeProfile(altitudeOf(p)/atmosphereHeight, cloudTopType);
     float botType = bottomTypeProfile(altitudeOf(p)/atmosphereHeight, cloudBottomType);
-    float verticalProfile = topType * botType;
+    float verticalProfile = topType * botType * weather.g;
     dimensionalProfile = coverage * verticalProfile;
 
     if(dimensionalProfile < 0.01) return 0.0;
@@ -249,6 +264,7 @@ vec3 rayMarch(vec3 ro, vec3 rd)
     vec2  range  = getAtmosphereRange(ro, rd);
     float tStart = range.x;
     float tEnd   = range.y;
+    tEnd = min(tEnd, terrainDepth(TexCoord));
 
     if (tStart >= tEnd) return skyColor;
 
@@ -314,6 +330,13 @@ vec3 rayMarch(vec3 ro, vec3 rd)
 
 void main()
 {
+    float d = texture(depthTex, TexCoord).r;
+    if (d > 0.0001 && d < 0.9999)
+    {
+        // Há terreno nesse pixel — descarta, deixa a cor do terreno
+        discard;
+    }
+
     vec2 uv        = TexCoord * 2.0 - 1.0;
     vec4 ray_clip  = vec4(uv, -1.0, 1.0);
     vec4 ray_world = inverse(camMatrix) * ray_clip;
@@ -321,5 +344,4 @@ void main()
     vec3 ro        = camPos;
     
     FragColor = vec4(rayMarch(ro, rd), 1.0);
-
 }

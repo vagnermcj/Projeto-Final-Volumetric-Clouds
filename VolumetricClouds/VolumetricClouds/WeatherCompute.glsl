@@ -102,12 +102,6 @@ void main()
     // ── Canal G: Height ────────────────────────────────
     float worley = worley2D(uv, heightScale);
     float height = remap(perlin, 1.0 - worley, 1.0, 0.0, 1.0);
-
-    float curve = ((pow((uv.x - 0.25) * 2.0, 3.0))/0.1) + 0.6;
-
-    float gradient = 1.0 - clamp((uv.y - 0.2) / 0.8, 0.0, 1.0);
-
-    float topGradient = uv.y < 0.2 ? gradient : uv.y > curve ? 0.0 : gradient;
     
-    imageStore(outWeatherTex, id, vec4(coverage, height, topGradient, 1.0));
+    imageStore(outWeatherTex, id, vec4(coverage, height, 0.0, 1.0));
 }

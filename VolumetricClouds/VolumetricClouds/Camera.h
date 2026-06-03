@@ -34,6 +34,7 @@ class Camera
 		float sensitivity = 50.0f;
 
 		Camera(int width, int height, glm::vec3 position);
+		glm::mat4 GetMatrix() const { return cameraMatrix; }
 		void updateMatrix(float FOVdeg, float nearPlane, float farPlane);
 		void Matrix(Shader& shader, const char* uniform);
 		void Inputs(GLFWwindow* window, ImGuiIO* io, bool allowInput);

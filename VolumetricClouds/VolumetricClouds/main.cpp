@@ -9,9 +9,10 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
+#include <imgui/ImGuiFileDialog.h>
 
 
-
+#include "mesh.h"
 #include "shaderClass.h"
 #include "VAO.h"
 #include "VBO.h"
@@ -30,6 +31,7 @@ GLuint shapeTexture, detailTexture, weatherTexture;
 GLuint ssboShape, ssboDetail, ssboAltitude;
 GLuint previewFBO, previewTex;
 GLuint mainFBO, mainColorTex, mainDepthTex;
+GLuint terrainTexture = 0;
 int mainFBOWidth = 800, mainFBOHeight = 800;
 
 Shader* sliceShader;
@@ -77,10 +79,16 @@ int main()
     glfwMakeContextCurrent(window);
     gladLoadGL();
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    // ─── Shaders ──────────────────────────────────────────────────────────────
+
+    MeshPtr terrainMesh = nullptr;
+    Shader* terrainProgram = nullptr; // ponteiro para inicializar após o contexto GL
+    glm::vec3 terrainColor(0.45f, 0.38f, 0.28f);
+
+
     Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
     Shader noiseCompute("NoiseCompute.glsl");
     Shader weatherCompute("WeatherCompute.glsl");
+    terrainProgram = new Shader("Terrain.vert", "Terrain.frag");
     sliceShader = new Shader("RayMarch.vert", "SlicePreview.frag");
     slice2DShader = new Shader("RayMarch.vert", "SlicePreview2D.frag");
 
@@ -112,6 +120,8 @@ int main()
 
 	SkyboxManager skyboxManager;
     std::string currentSkyboxName = "default";
+
+
 
     // ─── Parâmetros de Iluminação ─────────────────────────────────────────────
     glm::vec3 lightDirection(-0.08f, 0.35f, 1.0f);
@@ -215,6 +225,34 @@ int main()
         glViewport(0, 0, mainFBOWidth, mainFBOHeight);
         glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        camera.updateMatrix(45.0f, 0.1f, 1000.0f);
+
+
+        if (terrainMesh)
+        {
+            glEnable(GL_DEPTH_TEST);
+
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // origem
+            model = glm::scale(model, glm::vec3(1.0f)); // escala agressiva para testar
+
+            terrainProgram->Activate();
+            terrainProgram->SetUniform("model", model);
+            terrainProgram->SetUniform("camMatrix", camera.GetMatrix()); // ou camera.Matrix()
+            terrainProgram->SetUniform("camPos", camera.Position);
+            terrainProgram->SetUniform("lightDirection", lightDirection);
+            terrainProgram->SetUniform("lightColor", lightColor);
+            terrainProgram->SetUniform("ambientColor", ambientColor);
+            terrainProgram->SetUniform("ambientIntensity", ambientIntensity);
+            terrainProgram->SetUniform("terrainColor", terrainColor);
+            glActiveTexture(GL_TEXTURE5);
+            glBindTexture(GL_TEXTURE_2D, terrainTexture != 0 ? terrainTexture : 0);
+            terrainProgram->SetUniform("terrainTex", 5);
+            terrainProgram->SetUniform("hasTexture", terrainTexture != 0);
+            terrainMesh->Draw();
+
+            glDisable(GL_DEPTH_TEST);
+        }
 
         rayMarchingProgram.Activate();
 
@@ -273,9 +311,15 @@ int main()
         rayMarchingProgram.SetUniform("time", (float)glfwGetTime());
 
 
-        camera.updateMatrix(45.0f, 0.1f, 100.0f);
         camera.Matrix(rayMarchingProgram, "camMatrix");
         rayMarchingProgram.SetUniform("camPos", camera.Position);
+
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, mainDepthTex);
+        rayMarchingProgram.SetUniform("depthTex", 4);
+
+        glm::mat4 invProjView = glm::inverse(camera.GetMatrix());
+        rayMarchingProgram.SetUniform("invProjView", invProjView);
 
         drawScreenQuad();
 
@@ -415,6 +459,62 @@ int main()
                 cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
                 currentSkyboxName = skyboxManager.getCurrentSkyboxName();
             }
+        }
+
+        ImGui::End();
+
+        ImGui::Begin("Terrain");
+
+        if (ImGui::Button("Load OBJ..."))
+        {
+            IGFD::FileDialogConfig config;
+            config.path = ".";
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseOBJ", "Choose OBJ File", ".obj", config);
+        }
+
+        if (ImGuiFileDialog::Instance()->Display("ChooseOBJ"))
+        {
+            if (ImGuiFileDialog::Instance()->IsOk())
+            {
+                std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
+                terrainMesh = Mesh::Make(filePath);
+
+                std::string texPath = filePath.substr(0, filePath.find_last_of('.')) + ".jpg";
+                if (terrainTexture != 0)
+                    glDeleteTextures(1, &terrainTexture);
+
+                int w, h, ch;
+                unsigned char* data = stbi_load(texPath.c_str(), &w, &h, &ch, 0);
+                if (data) {
+                    glGenTextures(1, &terrainTexture);
+                    glBindTexture(GL_TEXTURE_2D, terrainTexture);
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+                    glGenerateMipmap(GL_TEXTURE_2D);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                    stbi_image_free(data);
+                    std::cout << "[Terrain] Texture loaded: " << texPath << "\n";
+                }
+                else {
+                    std::cout << "[Terrain] Texture not found: " << texPath << "\n";
+                }
+            }
+            ImGuiFileDialog::Instance()->Close();
+
+        }
+
+        if (terrainMesh)
+        {
+            std::cout << "[Terrain] Mesh loaded successfully\n";
+            ImGui::ColorEdit3("Terrain Color", glm::value_ptr(terrainColor));
+            if (ImGui::Button("Unload"))
+                terrainMesh = nullptr;
+        }
+        else
+        {
+            ImGui::TextDisabled("No mesh loaded.");
         }
 
         ImGui::End();
@@ -615,6 +715,10 @@ void initMainFBO(int width, int height) {
     glGenTextures(1, &mainDepthTex);
     glBindTexture(GL_TEXTURE_2D, mainDepthTex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, mainDepthTex, 0);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)

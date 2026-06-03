@@ -78,6 +78,12 @@
     <ClCompile Include="PresetManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="mesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Libraries\include\imgui\ImGuiFileDialog.cpp">
+      <Filter>Source Files\imgui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="shaderClass.h">
@@ -116,6 +122,15 @@
     <ClInclude Include="Skybox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\include\imgui\ImGuiFileDialog.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Libraries\include\imgui\imgui_internal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="RayMarch.frag">
@@ -134,6 +149,12 @@
       <Filter>Resource Files\Shaders</Filter>
     </None>
     <None Include="NoiseCompute.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="Terrain.vert">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="Terrain.frag">
       <Filter>Resource Files\Shaders</Filter>
     </None>
   </ItemGroup>
