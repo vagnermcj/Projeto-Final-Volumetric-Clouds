@@ -333,7 +333,6 @@ void main()
     float d = texture(depthTex, TexCoord).r;
     if (d > 0.0001 && d < 0.9999)
     {
-        // Há terreno nesse pixel — descarta, deixa a cor do terreno
         discard;
     }
 

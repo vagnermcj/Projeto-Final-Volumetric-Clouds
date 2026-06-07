@@ -77,12 +77,14 @@ int main()
     if (!window) { std::cout << "Failed to create GLFW window\n"; glfwTerminate(); return -1; }
 
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(0);
     gladLoadGL();
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     MeshPtr terrainMesh = nullptr;
     Shader* terrainProgram = nullptr; // ponteiro para inicializar após o contexto GL
     glm::vec3 terrainColor(0.45f, 0.38f, 0.28f);
+    std::string currentTerrainPath = "";
 
 
     Shader rayMarchingProgram("RayMarch.vert", "RayMarch.frag");
@@ -112,6 +114,9 @@ int main()
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 430 core");
     Camera camera(SCR_WIDTH, SCR_HEIGHT, glm::vec3(0.0f, 0.0f, 5.0f));
+    // track camera for presets
+    glm::vec3 initialCameraPos = camera.Position;
+    glm::vec3 initialCameraOri = camera.Orientation;
 
 	// ─── Gerenciamento de Presets ─────────────────────────────────────────────
 	PresetManager presetManager;
@@ -149,8 +154,6 @@ int main()
 
     // ─── Parâmetros de Densidade ──────────────────────────────────────────────
     float weatherScale = 500.0f;
-    float maxCloudHeight = 25.0f;
-    float maxCloudAltitude = 80.0f;
     float erosionValue = 0.05f;
     glm::vec4 shapeNoiseWeights(1.0f, 0.625f, 0.25f, 0.125f);
     float shapeScale = 180.0f;
@@ -477,6 +480,7 @@ int main()
             if (ImGuiFileDialog::Instance()->IsOk())
             {
                 std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
+                    currentTerrainPath = filePath;
                 terrainMesh = Mesh::Make(filePath);
 
                 std::string texPath = filePath.substr(0, filePath.find_last_of('.')) + ".jpg";
@@ -510,7 +514,11 @@ int main()
             std::cout << "[Terrain] Mesh loaded successfully\n";
             ImGui::ColorEdit3("Terrain Color", glm::value_ptr(terrainColor));
             if (ImGui::Button("Unload"))
-                terrainMesh = nullptr;
+                    {
+                        terrainMesh = nullptr;
+                        currentTerrainPath.clear();
+                        if (terrainTexture != 0) { glDeleteTextures(1, &terrainTexture); terrainTexture = 0; }
+                    }
         }
         else
         {
@@ -526,13 +534,16 @@ int main()
         auto presetNames = presetManager.getPresetNames();
         if (ImGui::Combo("##PresetSelector", &selectedPreset, presetNames.data(), presetNames.size())) {
             // Aplicar preset selecionado
+            std::string presetTerrainPath;
+            glm::vec3 presetCameraPos;
+            glm::vec3 presetCameraOri;
             presetManager.applyPreset(selectedPreset,
                 // Vento
                 windDirection, windSpeed,
                 // Atmosfera
                 planetRadius, atmosphereStart, atmosphereHeight, atmosphereMaxDepth,
                 // Densidade
-                weatherScale, maxCloudHeight, maxCloudAltitude, shapeScale, detailScale,
+                weatherScale, shapeScale, detailScale,
                 erosionValue, shapeNoiseWeights,
                 // Ray Marching
                 cloudMaxSteps,
@@ -544,7 +555,10 @@ int main()
                 shapeOctaves, detailOctaves, perlinScale,
                 invertWorleyShape, invertWorleyDetail,
                 // Weather
-                coverageScale, heightScale, altitudeScale, currentSkyboxName
+				coverageScale, heightScale, altitudeScale, presetCameraPos, presetCameraOri, currentSkyboxName,
+				// terrain + visual
+				presetTerrainPath, ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
+				enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
             );
 
             // Aplicar skybox do preset
@@ -553,6 +567,40 @@ int main()
                     glDeleteTextures(1, &cubemapTexture);
                 }*/
                 cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
+            }
+
+            // Apply camera from preset
+            if (presetCameraPos != glm::vec3(0.0f) || presetCameraOri != glm::vec3(0.0f,0.0f,-1.0f)) {
+                camera.Position = presetCameraPos;
+                camera.Orientation = presetCameraOri;
+            }
+
+            // If preset provided a terrainPath, load it
+            if (!presetTerrainPath.empty()) {
+                // try to load mesh
+                if (terrainMesh) { terrainMesh = nullptr; }
+                currentTerrainPath = presetTerrainPath;
+                terrainMesh = Mesh::Make(presetTerrainPath);
+
+                // try to load texture alongside mesh (same basename .jpg)
+                std::string texPath = presetTerrainPath.substr(0, presetTerrainPath.find_last_of('.')) + ".jpg";
+                if (terrainTexture != 0) { glDeleteTextures(1, &terrainTexture); terrainTexture = 0; }
+                int w, h, ch;
+                unsigned char* data = stbi_load(texPath.c_str(), &w, &h, &ch, 0);
+                if (data) {
+                    glGenTextures(1, &terrainTexture);
+                    glBindTexture(GL_TEXTURE_2D, terrainTexture);
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+                    glGenerateMipmap(GL_TEXTURE_2D);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                    stbi_image_free(data);
+                    std::cout << "[Terrain] Texture loaded from preset: " << texPath << "\n";
+                } else {
+                    std::cout << "[Terrain] Texture not found for preset: " << texPath << "\n";
+                }
             }
 
             needsUpdate = true;
@@ -573,7 +621,7 @@ int main()
                     // Atmosfera
                     planetRadius, atmosphereStart, atmosphereHeight, atmosphereMaxDepth,
                     // Densidade
-                    weatherScale, maxCloudHeight, maxCloudAltitude, shapeScale, detailScale,
+                    weatherScale, shapeScale, detailScale,
                     erosionValue, shapeNoiseWeights,
                     // Ray Marching
                     cloudMaxSteps,
@@ -585,8 +633,10 @@ int main()
                     shapeOctaves, detailOctaves, perlinScale,
                     invertWorleyShape, invertWorleyDetail,
                     // Weather
-                    coverageScale, heightScale, altitudeScale,// Skybox
-                    currentSkyboxName 
+					coverageScale, heightScale, altitudeScale, camera.Position, camera.Orientation, currentSkyboxName,
+					// terrain + visual
+					currentTerrainPath, ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
+					enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
                 );
 
                 // Limpa o input

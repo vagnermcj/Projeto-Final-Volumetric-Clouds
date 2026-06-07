@@ -31,8 +31,19 @@ CloudPreset PresetManager::getDefaultPreset() {
 		def.scatteringCoefficient = 0.01f;
 		def.extinctionCoefficient = 0.01f;
         def.ambientIntensity = 1.3f;
+        def.ambientColor = glm::vec3(1.0f);
+        def.cloudTopType = 0.6f;
+        def.cloudBottomType = 0.5f;
+        def.silver_intensity = 0.5f;
+        def.silver_spread = 2.0f;
         def.precipitation = 1.0f;
         def.lightMaxSteps = 3;
+        def.enableDetailErosion = true;
+        def.enableLightMarching = true;
+        def.enableBeersLaw = true;
+        def.enablePowderEffect = true;
+        def.enablePhaseFunction = true;
+        def.enableSilverSheen = true;
 
         def.shapeOctaves = glm::ivec3(2, 4, 8);
         def.detailOctaves = glm::ivec3(8, 16, 32);
@@ -44,6 +55,8 @@ CloudPreset PresetManager::getDefaultPreset() {
         def.heightScale = 1.5f;
         def.altitudeScale = 1.0f;
         def.skyboxName = "default";
+        def.cameraPosition = glm::vec3(0.0f, 0.0f, 5.0f);
+        def.cameraOrientation = glm::vec3(0.0f, 0.0f, -1.0f);
 
         return def;
     }
@@ -125,7 +138,21 @@ void PresetManager::parseLine(const std::string& line, CloudPreset& preset) {
         else if (key == "coverageScale") preset.coverageScale = std::stof(value);
         else if (key == "heightScale") preset.heightScale = std::stof(value);
         else if (key == "altitudeScale") preset.altitudeScale = std::stof(value);
-        else if (key == "skyboxName") preset.skyboxName = value;
+    else if (key == "skyboxName") preset.skyboxName = value;
+        else if (key == "terrainPath") preset.terrainPath = value;
+        else if (key == "ambientColor") preset.ambientColor = parseVec3(value);
+        else if (key == "cameraPosition") preset.cameraPosition = parseVec3(value);
+        else if (key == "cameraOrientation") preset.cameraOrientation = parseVec3(value);
+        else if (key == "cloudTopType") preset.cloudTopType = std::stof(value);
+        else if (key == "cloudBottomType") preset.cloudBottomType = std::stof(value);
+        else if (key == "silver_intensity") preset.silver_intensity = std::stof(value);
+        else if (key == "silver_spread") preset.silver_spread = std::stof(value);
+    else if (key == "enableDetailErosion") preset.enableDetailErosion = parseBool(value);
+    else if (key == "enableLightMarching") preset.enableLightMarching = parseBool(value);
+    else if (key == "enableBeersLaw") preset.enableBeersLaw = parseBool(value);
+    else if (key == "enablePowderEffect") preset.enablePowderEffect = parseBool(value);
+    else if (key == "enablePhaseFunction") preset.enablePhaseFunction = parseBool(value);
+    else if (key == "enableSilverSheen") preset.enableSilverSheen = parseBool(value);
 }
 
 // Carrega um preset de um arquivo
@@ -196,6 +223,26 @@ void PresetManager::savePresetToFile(const CloudPreset& preset, const std::strin
     file << "heightScale=" << preset.heightScale << "\n";
     file << "altitudeScale=" << preset.altitudeScale << "\n";
 
+    file << "# Terrain\n";
+    file << "terrainPath=" << preset.terrainPath << "\n";
+
+    file << "# Camera\n";
+    file << "cameraPosition=" << preset.cameraPosition.x << "," << preset.cameraPosition.y << "," << preset.cameraPosition.z << "\n";
+    file << "cameraOrientation=" << preset.cameraOrientation.x << "," << preset.cameraOrientation.y << "," << preset.cameraOrientation.z << "\n";
+
+    file << "# Ambient/Visual\n";
+    file << "ambientColor=" << preset.ambientColor.x << "," << preset.ambientColor.y << "," << preset.ambientColor.z << "\n";
+    file << "cloudTopType=" << preset.cloudTopType << "\n";
+    file << "cloudBottomType=" << preset.cloudBottomType << "\n";
+    file << "silver_intensity=" << preset.silver_intensity << "\n";
+    file << "silver_spread=" << preset.silver_spread << "\n";
+    file << "enableDetailErosion=" << (preset.enableDetailErosion ? "1" : "0") << "\n";
+    file << "enableLightMarching=" << (preset.enableLightMarching ? "1" : "0") << "\n";
+    file << "enableBeersLaw=" << (preset.enableBeersLaw ? "1" : "0") << "\n";
+    file << "enablePowderEffect=" << (preset.enablePowderEffect ? "1" : "0") << "\n";
+    file << "enablePhaseFunction=" << (preset.enablePhaseFunction ? "1" : "0") << "\n";
+    file << "enableSilverSheen=" << (preset.enableSilverSheen ? "1" : "0") << "\n";
+
     file << "# Skybox\n";
     file << "skyboxName=" << preset.skyboxName << "\n";
 
@@ -231,17 +278,21 @@ void PresetManager::ScanPresetsFolder() {
     // Captura estado atual e salva como preset
 void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& windDir, float windSpd,
         float pRadius, float atmStart, float atmHeight, float atmDepth,
-        float wScale, float maxHeight, float maxAlt, float shpScale, float dtlScale,
+        float wScale, float shpScale, float dtlScale,
         float dtlWeight, const glm::vec4& shpWeights,
         int cloudSteps,
         const glm::vec3& lightDir, const glm::vec3& lightCol, float phase,
-	    float scatCoef, float extCoef,
+        float scatCoef, float extCoef,
         float ambInt, float precip, int lightSteps,
         const glm::ivec3& shpOct, const glm::ivec3& dtlOct, float pScale,
         bool invWorleyShp, bool invWorleyDtl,
-        float covScale, float hScale, float altScale, const std::string& skyboxName)
+        float covScale, float hScale, float altScale, const glm::vec3& cameraPos, const glm::vec3& cameraOri, const std::string& skyboxName, const std::string& terrainPath,
+        const glm::vec3& ambientColor, float cloudTopType, float cloudBottomType, float silver_intensity, float silver_spread,
+        bool enableDetailErosion, bool enableLightMarching, bool enableBeersLaw, bool enablePowderEffect, bool enablePhaseFunction, bool enableSilverSheen)
 {
-        CloudPreset preset;
+        // Initialize with defaults so performance toggles and other non-provided
+        // fields keep safe default values when caller doesn't supply them.
+        CloudPreset preset = getDefaultPreset();
         preset.name = name;
         preset.windDirection = windDir;
         preset.windSpeed = windSpd;
@@ -250,8 +301,6 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
         preset.atmosphereHeight = atmHeight;
         preset.atmosphereMaxDepth = atmDepth;
         preset.weatherScale = wScale;
-        preset.maxCloudHeight = maxHeight;
-        preset.maxCloudAltitude = maxAlt;
         preset.shapeScale = shpScale;
         preset.detailScale = dtlScale;
         preset.detailNoiseWeight = dtlWeight;
@@ -264,6 +313,11 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
 		preset.extinctionCoefficient = extCoef;
         preset.precipitation = precip;
         preset.lightMaxSteps = lightSteps;
+        preset.ambientColor = ambientColor;
+        preset.cloudTopType = cloudTopType;
+        preset.cloudBottomType = cloudBottomType;
+        preset.silver_intensity = silver_intensity;
+        preset.silver_spread = silver_spread;
         preset.shapeOctaves = shpOct;
         preset.detailOctaves = dtlOct;
         preset.perlinScale = pScale;
@@ -272,7 +326,17 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
         preset.coverageScale = covScale;
         preset.heightScale = hScale;
         preset.altitudeScale = altScale;
+        preset.cameraPosition = cameraPos;
+        preset.cameraOrientation = cameraOri;
         preset.skyboxName = skyboxName;
+        preset.terrainPath = terrainPath;
+        // Performance toggles set from caller
+        preset.enableDetailErosion = enableDetailErosion;
+        preset.enableLightMarching = enableLightMarching;
+        preset.enableBeersLaw = enableBeersLaw;
+        preset.enablePowderEffect = enablePowderEffect;
+        preset.enablePhaseFunction = enablePhaseFunction;
+        preset.enableSilverSheen = enableSilverSheen;
 
     // Salva em arquivo
     std::string filename = presetsFolder + "/" + name + ".preset";
@@ -282,26 +346,22 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
     ScanPresetsFolder();
 }
 
-    // Aplica um preset (copia valores para as variáveis)
-void PresetManager::applyPreset(int index,
-        // Vento
-        glm::vec3& windDir, float& windSpd,
-        // Atmosfera
-        float& pRadius, float& atmStart, float& atmHeight, float& atmDepth,
-        // Densidade
-        float& wScale, float& maxHeight, float& maxAlt, float& shpScale, float& dtlScale,
-        float& dtlWeight, glm::vec4& shpWeights,
-        // Ray Marching
-        int& cloudSteps,
-        // Iluminação
-        glm::vec3& lightDir, glm::vec3& lightCol, float& phase,
-        float& scattCoef, float& extCoef,
-        float& ambInt, float& precip, int& lightSteps,
-        // Noise
-        glm::ivec3& shpOct, glm::ivec3& dtlOct, float& pScale,
-        bool& invWorleyShp, bool& invWorleyDtl,
-        // Weather
-        float& covScale, float& hScale, float& altScale, std::string& skyboxName)
+// Aplica um preset (copia valores para as variáveis)
+void PresetManager::applyPreset(int index, glm::vec3& windDir, float& windSpd,
+    float& pRadius, float& atmStart, float& atmHeight, float& atmDepth,
+    float& wScale, float& shpScale, float& dtlScale,
+    float& dtlWeight, glm::vec4& shpWeights, int& cloudSteps,
+    glm::vec3& lightDir, glm::vec3& lightCol, float& phase,
+    float& scattCoef, float& extCoef,
+    float& ambInt, float& precip, int& lightSteps,
+    glm::ivec3& shpOct, glm::ivec3& dtlOct, float& pScale,
+    bool& invWorleyShp, bool& invWorleyDtl,
+    float& covScale, float& hScale, float& altScale, glm::vec3& cameraPos, glm::vec3& cameraOri,
+    std::string& skyboxName, std::string& terrainPath,
+    glm::vec3& ambientColor, float& cloudTopType, float& cloudBottomType,
+    float& silver_intensity, float& silver_spread,
+    bool& enableDetailErosion, bool& enableLightMarching, bool& enableBeersLaw,
+    bool& enablePowderEffect, bool& enablePhaseFunction, bool& enableSilverSheen)
 {
     if (index < 0 || index >= presets.size()) return;
 
@@ -314,8 +374,6 @@ void PresetManager::applyPreset(int index,
     atmHeight = p.atmosphereHeight;
     atmDepth = p.atmosphereMaxDepth;
     wScale = p.weatherScale;
-    maxHeight = p.maxCloudHeight;
-    maxAlt = p.maxCloudAltitude;
     shpScale = p.shapeScale;
     dtlScale = p.detailScale;
     dtlWeight = p.detailNoiseWeight;
@@ -337,7 +395,23 @@ void PresetManager::applyPreset(int index,
     covScale = p.coverageScale;
     hScale = p.heightScale;
     altScale = p.altitudeScale;
-	skyboxName = p.skyboxName;
+    // camera
+    cameraPos = p.cameraPosition;
+    cameraOri = p.cameraOrientation;
+    skyboxName = p.skyboxName;
+    terrainPath = p.terrainPath;
+    ambientColor = p.ambientColor;
+    cloudTopType = p.cloudTopType;
+    cloudBottomType = p.cloudBottomType;
+    silver_intensity = p.silver_intensity;
+    silver_spread = p.silver_spread;
+    // performance toggles
+    enableDetailErosion = p.enableDetailErosion;
+    enableLightMarching = p.enableLightMarching;
+    enableBeersLaw = p.enableBeersLaw;
+    enablePowderEffect = p.enablePowderEffect;
+    enablePhaseFunction = p.enablePhaseFunction;
+    enableSilverSheen = p.enableSilverSheen;
 }
 
 // Deleta um preset (não pode deletar Default)
@@ -360,4 +434,10 @@ std::vector<const char*> PresetManager::getPresetNames() {
 
 int PresetManager::getPresetCount() {
     return presets.size();
+}
+
+CloudPreset PresetManager::getPreset(int index) {
+    if (index < 0 || index >= static_cast<int>(presets.size())) return getDefaultPreset();
+    // no-op: ensure function ends properly while keeping behavior unchanged
+    return presets[index];
 }

@@ -1,0 +1,64 @@
+# Scenario 1 - Cumulus MidDay Preset
+
+# Wind
+windDirection=0,1,1
+windSpeed=0.01
+
+# Atmosphere
+planetRadius=6000
+atmosphereStart=1000
+atmosphereHeight=1500
+atmosphereMaxDepth=793
+
+# Density
+weatherScale=1839
+maxCloudHeight=25
+maxCloudAltitude=80
+shapeScale=222.5
+detailScale=94.9
+detailNoiseWeight=0.02
+shapeNoiseWeights=1,0.625,0.25,0.125
+
+# Ray Marching
+cloudMaxSteps=43
+
+# Lighting
+lightDirection=0,1,0
+lightColor=1,1,1
+phaseG=0.999
+scatteringCoefficient=0.64
+extinctionCoefficient=0.85
+ambientIntensity=1.3
+precipitation=1
+lightMaxSteps=3
+
+# Noise Generation
+shapeOctaves=2,4,8
+detailOctaves=8,12,16
+perlinScale=1
+invertWorleyShape=1
+invertWorleyDetail=1
+
+# Weather Map
+coverageScale=4.8
+heightScale=1.5
+altitudeScale=1
+# Terrain
+terrainPath=D:\Projeto-Final-Volumetric-Clouds\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\terrains\source\mountain1.obj
+# Camera
+cameraPosition=519.457,22.196,-373.07
+cameraOrientation=0.714481,0.639521,-0.283655
+# Ambient/Visual
+ambientColor=1,1,1
+cloudTopType=0.45
+cloudBottomType=0.554
+silver_intensity=3.05
+silver_spread=0.82
+enableDetailErosion=1
+enableLightMarching=1
+enableBeersLaw=1
+enablePowderEffect=1
+enablePhaseFunction=1
+enableSilverSheen=1
+# Skybox
+skyboxName=default

@@ -39,8 +39,15 @@ struct CloudPreset {
     float scatteringCoefficient;
 	float extinctionCoefficient;
     float ambientIntensity;
+    glm::vec3 ambientColor;
     float precipitation;
     int lightMaxSteps;
+
+    // Extra visual
+    float cloudTopType;
+    float cloudBottomType;
+    float silver_intensity;
+    float silver_spread;
 
     // Noise Generation
     glm::ivec3 shapeOctaves;
@@ -54,8 +61,21 @@ struct CloudPreset {
     float heightScale;
     float altitudeScale;
 
+    // Camera
+    glm::vec3 cameraPosition;
+    glm::vec3 cameraOrientation;
+
     // Skybox
     std::string skyboxName;
+    // Terrain (path or name)
+    std::string terrainPath;
+    // Performance toggles
+    bool enableDetailErosion;
+    bool enableLightMarching;
+    bool enableBeersLaw;
+    bool enablePowderEffect;
+    bool enablePhaseFunction;
+    bool enableSilverSheen;
 };
 
 class PresetManager {
@@ -70,9 +90,10 @@ private:
 public:
 	PresetManager();
 	void ScanPresetsFolder();
-	void saveCurrentState(const std::string& name, const glm::vec3& windDir, float windSpd,
+    CloudPreset getPreset(int index);
+    void saveCurrentState(const std::string& name, const glm::vec3& windDir, float windSpd,
         float pRadius, float atmStart, float atmHeight, float atmDepth,
-        float wScale, float maxHeight, float maxAlt, float shpScale, float dtlScale,
+        float wScale, float shpScale, float dtlScale,
         float dtlWeight, const glm::vec4& shpWeights,
         int cloudSteps,
         const glm::vec3& lightDir, const glm::vec3& lightCol, float phase,
@@ -80,15 +101,24 @@ public:
         float ambInt, float precip, int lightSteps,
         const glm::ivec3& shpOct, const glm::ivec3& dtlOct, float pScale,
         bool invWorleyShp, bool invWorleyDtl,
-        float covScale, float hScale, float altScale, const std::string& skyboxName);
-	void applyPreset(int index, glm::vec3& windDir, float& windSpd,
-		float& pRadius, float& atmStart, float& atmHeight, float& atmDepth,
-		float& wScale, float& maxHeight, float& maxAlt, float& shpScale, float& dtlScale,
-		float& dtlWeight, glm::vec4& shpWeights, int& cloudSteps,
-		glm::vec3& lightDir, glm::vec3& lightCol, float& phase,
-		float& scattCoef, float& extCoef,    
-		float& ambInt, float& precip, int& lightSteps, glm::ivec3& shpOct, glm::ivec3& dtlOct, float& pScale,
-		bool& invWorleyShp, bool& invWorleyDtl, float& covScale, float& hScale, float& altScale, std::string& skyboxName);
+        float covScale, float hScale, float altScale, const glm::vec3& cameraPos, const glm::vec3& cameraOri, const std::string& skyboxName, const std::string& terrainPath,
+        const glm::vec3& ambientColor, float cloudTopType, float cloudBottomType, float silver_intensity, float silver_spread,
+        bool enableDetailErosion, bool enableLightMarching, bool enableBeersLaw, bool enablePowderEffect, bool enablePhaseFunction, bool enableSilverSheen);
+    void applyPreset(int index, glm::vec3& windDir, float& windSpd,
+        float& pRadius, float& atmStart, float& atmHeight, float& atmDepth,
+        float& wScale, float& shpScale, float& dtlScale,
+        float& dtlWeight, glm::vec4& shpWeights, int& cloudSteps,
+        glm::vec3& lightDir, glm::vec3& lightCol, float& phase,
+        float& scattCoef, float& extCoef,
+        float& ambInt, float& precip, int& lightSteps,
+        glm::ivec3& shpOct, glm::ivec3& dtlOct, float& pScale,
+        bool& invWorleyShp, bool& invWorleyDtl,
+        float& covScale, float& hScale, float& altScale, glm::vec3& cameraPos, glm::vec3& cameraOri,
+        std::string& skyboxName, std::string& terrainPath,
+        glm::vec3& ambientColor, float& cloudTopType, float& cloudBottomType,
+        float& silver_intensity, float& silver_spread,
+        bool& enableDetailErosion, bool& enableLightMarching, bool& enableBeersLaw,
+        bool& enablePowderEffect, bool& enablePhaseFunction, bool& enableSilverSheen);
 	void deletePreset(int index);
 	std::vector<const char*> getPresetNames();
 	int getPresetCount();

@@ -1,0 +1,64 @@
+# Scenario 2 - Stratocumulus Preset
+
+# Wind
+windDirection=0,-1,1
+windSpeed=0.01
+
+# Atmosphere
+planetRadius=6000
+atmosphereStart=1011.5
+atmosphereHeight=1500
+atmosphereMaxDepth=793
+
+# Density
+weatherScale=727
+maxCloudHeight=25
+maxCloudAltitude=80
+shapeScale=111.3
+detailScale=64.5
+detailNoiseWeight=0
+shapeNoiseWeights=1,0.625,0.25,0.125
+
+# Ray Marching
+cloudMaxSteps=43
+
+# Lighting
+lightDirection=1,1,0
+lightColor=1,1,1
+phaseG=0.999
+scatteringCoefficient=0.49
+extinctionCoefficient=0.63
+ambientIntensity=1.3
+precipitation=1
+lightMaxSteps=3
+
+# Noise Generation
+shapeOctaves=2,4,8
+detailOctaves=8,12,16
+perlinScale=1
+invertWorleyShape=1
+invertWorleyDetail=1
+
+# Weather Map
+coverageScale=7.5
+heightScale=1.5
+altitudeScale=1
+# Terrain
+terrainPath=D:\Projeto-Final-Volumetric-Clouds\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\terrains\source\mountain1.obj
+# Camera
+cameraPosition=519.457,22.196,-373.07
+cameraOrientation=-0.355058,0.542915,-0.760973
+# Ambient/Visual
+ambientColor=1,1,1
+cloudTopType=0.37
+cloudBottomType=0.554
+silver_intensity=3.05
+silver_spread=0.82
+enableDetailErosion=1
+enableLightMarching=1
+enableBeersLaw=1
+enablePowderEffect=1
+enablePhaseFunction=1
+enableSilverSheen=1
+# Skybox
+skyboxName=default

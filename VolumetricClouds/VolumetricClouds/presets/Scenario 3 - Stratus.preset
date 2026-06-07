@@ -1,0 +1,64 @@
+# Scenario 3 - Stratus Preset
+
+# Wind
+windDirection=-1,0.09,-0.07
+windSpeed=0
+
+# Atmosphere
+planetRadius=6000
+atmosphereStart=1000
+atmosphereHeight=1234.5
+atmosphereMaxDepth=793
+
+# Density
+weatherScale=1839
+maxCloudHeight=25
+maxCloudAltitude=80
+shapeScale=222.5
+detailScale=94.9
+detailNoiseWeight=0.02
+shapeNoiseWeights=1,0.625,0.25,0.125
+
+# Ray Marching
+cloudMaxSteps=43
+
+# Lighting
+lightDirection=-1,-0.32,-1
+lightColor=0.95098,0.914784,0.797145
+phaseG=0.819
+scatteringCoefficient=1
+extinctionCoefficient=1
+ambientIntensity=1.3
+precipitation=1
+lightMaxSteps=9
+
+# Noise Generation
+shapeOctaves=2,4,8
+detailOctaves=8,12,16
+perlinScale=1
+invertWorleyShape=1
+invertWorleyDetail=1
+
+# Weather Map
+coverageScale=4.8
+heightScale=1.5
+altitudeScale=1
+# Terrain
+terrainPath=D:\Projeto-Final-Volumetric-Clouds\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\terrains\source\mountain1.obj
+# Camera
+cameraPosition=596.726,32.5414,-374.076
+cameraOrientation=-0.482751,0.432867,-0.76109
+# Ambient/Visual
+ambientColor=0.906863,0.893526,0.893526
+cloudTopType=0.393
+cloudBottomType=0.554
+silver_intensity=3.05
+silver_spread=0.82
+enableDetailErosion=1
+enableLightMarching=1
+enableBeersLaw=1
+enablePowderEffect=1
+enablePhaseFunction=1
+enableSilverSheen=1
+# Skybox
+skyboxName=Nublado
