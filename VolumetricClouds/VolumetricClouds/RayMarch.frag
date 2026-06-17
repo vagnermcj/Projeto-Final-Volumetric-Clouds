@@ -61,6 +61,9 @@ uniform sampler3D  shapeNoise;
 uniform sampler3D  detailNoise;
 uniform sampler2D  weatherMap;
 uniform samplerCube skybox;
+uniform bool  useSkybox;
+uniform vec3  gradientColorTop;
+uniform vec3  gradientColorBottom;
 
 float dimensionalProfile = 1.0;
 
@@ -259,7 +262,9 @@ float lightMarching(vec3 pos)
 
 vec3 rayMarch(vec3 ro, vec3 rd)
 {
-    vec3 skyColor = texture(skybox, rd).rgb;
+    vec3 skyColor = useSkybox
+        ? texture(skybox, rd).rgb
+        : mix(gradientColorBottom, gradientColorTop, clamp(rd.y * 0.5 + 0.5, 0.0, 1.0));
 
     vec2  range  = getAtmosphereRange(ro, rd);
     float tStart = range.x;

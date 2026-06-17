@@ -84,6 +84,8 @@ int main()
     MeshPtr terrainMesh = nullptr;
     Shader* terrainProgram = nullptr; // ponteiro para inicializar após o contexto GL
     glm::vec3 terrainColor(0.45f, 0.38f, 0.28f);
+    glm::vec3 terrainPosition(0.0f, 0.0f, 0.0f);
+    glm::vec3 terrainScale(1.0f, 1.0f, 1.0f);
     std::string currentTerrainPath = "";
 
 
@@ -102,7 +104,7 @@ int main()
     glGenBuffers(1, &ssboShape);
     glGenBuffers(1, &ssboDetail);
 
-    
+
 
     // ─── ImGui ────────────────────────────────────────────────────────────────
     IMGUI_CHECKVERSION();
@@ -117,13 +119,14 @@ int main()
     // track camera for presets
     glm::vec3 initialCameraPos = camera.Position;
     glm::vec3 initialCameraOri = camera.Orientation;
+    float cameraFar = 1000.0f;
 
-	// ─── Gerenciamento de Presets ─────────────────────────────────────────────
-	PresetManager presetManager;
+    // ─── Gerenciamento de Presets ─────────────────────────────────────────────
+    PresetManager presetManager;
     int selectedPreset = 0;
-	char newPresetName[64] = "";
+    char newPresetName[64] = "";
 
-	SkyboxManager skyboxManager;
+    SkyboxManager skyboxManager;
     std::string currentSkyboxName = "default";
 
 
@@ -137,7 +140,7 @@ int main()
     float phaseG = 0.6f;
     float extinctionCoef = 0.9f;
     float scatteringCoef = 0.2f;
-	float ambientIntensity = 1.0f;
+    float ambientIntensity = 1.0f;
     float precipitation = 1.0f;
     int lightMaxSteps = 3;
 
@@ -149,7 +152,7 @@ int main()
     float planetRadius = 6000.0f;
     float atmosphereStart = 100.0f;
     float atmosphereHeight = 250.0f;
-	float atmosphereMaxDepth = 200.0f;
+    float atmosphereMaxDepth = 200.0f;
     float innerCloudRadius, outerCloudRadius;
 
     // ─── Parâmetros de Densidade ──────────────────────────────────────────────
@@ -157,7 +160,7 @@ int main()
     float erosionValue = 0.05f;
     glm::vec4 shapeNoiseWeights(1.0f, 0.625f, 0.25f, 0.125f);
     float shapeScale = 180.0f;
-	float detailScale = 20.0f;
+    float detailScale = 20.0f;
     int cloudMaxSteps = 40;
     float cloudTopType = 0.6f;
     float cloudBottomType = 0.5f;
@@ -179,10 +182,13 @@ int main()
     std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
     std::uniform_real_distribution<float> dist(0.0f, 1024.0f);   // range large enough
     weatherNoiseOffset = glm::vec2(dist(rng), dist(rng));
-    
+
 
     // Skybox
     unsigned int cubemapTexture = 0;
+    bool useSkybox = true;
+    glm::vec3 gradientColorTop(0.1f, 0.3f, 0.6f);
+    glm::vec3 gradientColorBottom(0.6f, 0.75f, 0.9f);
     if (skyboxManager.getSkyboxCount() > 0) {
         cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
         currentSkyboxName = skyboxManager.getCurrentSkyboxName();
@@ -202,7 +208,7 @@ int main()
         glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        
+
         // Compute Shaders 
         if (needsUpdate) {
             glm::ivec3 sOff, dOff;
@@ -228,7 +234,7 @@ int main()
         glViewport(0, 0, mainFBOWidth, mainFBOHeight);
         glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        camera.updateMatrix(45.0f, 0.1f, 1000.0f);
+        camera.updateMatrix(45.0f, 0.1f, cameraFar);
 
 
         if (terrainMesh)
@@ -236,20 +242,18 @@ int main()
             glEnable(GL_DEPTH_TEST);
 
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // origem
-            model = glm::scale(model, glm::vec3(1.0f)); // escala agressiva para testar
+            model = glm::translate(model, terrainPosition);
+            model = glm::scale(model, terrainScale);
 
             terrainProgram->Activate();
             terrainProgram->SetUniform("model", model);
-            terrainProgram->SetUniform("camMatrix", camera.GetMatrix()); // ou camera.Matrix()
+            terrainProgram->SetUniform("camMatrix", camera.GetMatrix());
             terrainProgram->SetUniform("camPos", camera.Position);
             terrainProgram->SetUniform("lightDirection", lightDirection);
             terrainProgram->SetUniform("lightColor", lightColor);
             terrainProgram->SetUniform("ambientColor", ambientColor);
             terrainProgram->SetUniform("ambientIntensity", ambientIntensity);
             terrainProgram->SetUniform("terrainColor", terrainColor);
-            glActiveTexture(GL_TEXTURE5);
-            glBindTexture(GL_TEXTURE_2D, terrainTexture != 0 ? terrainTexture : 0);
             terrainProgram->SetUniform("terrainTex", 5);
             terrainProgram->SetUniform("hasTexture", terrainTexture != 0);
             terrainMesh->Draw();
@@ -264,6 +268,9 @@ int main()
         glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_3D, detailTexture);  rayMarchingProgram.SetUniform("detailNoise", 1);
         glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, weatherTexture); rayMarchingProgram.SetUniform("weatherMap", 2);
         glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture); rayMarchingProgram.SetUniform("skybox", 3);
+        rayMarchingProgram.SetUniform("useSkybox", useSkybox);
+        rayMarchingProgram.SetUniform("gradientColorTop", gradientColorTop);
+        rayMarchingProgram.SetUniform("gradientColorBottom", gradientColorBottom);
 
         // Uniforms — Atmosfera
         innerCloudRadius = planetRadius + atmosphereStart;
@@ -295,8 +302,8 @@ int main()
         rayMarchingProgram.SetUniform("silver_spread", silver_spread);
         rayMarchingProgram.SetUniform("lightSteps", lightMaxSteps);
         rayMarchingProgram.SetUniform("phaseG", phaseG);
-		rayMarchingProgram.SetUniform("extinctionCoef", extinctionCoef);
-		rayMarchingProgram.SetUniform("scatteringCoef", scatteringCoef);
+        rayMarchingProgram.SetUniform("extinctionCoef", extinctionCoef);
+        rayMarchingProgram.SetUniform("scatteringCoef", scatteringCoef);
         rayMarchingProgram.SetUniform("ambientIntensity", ambientIntensity);
         rayMarchingProgram.SetUniform("precipitation", precipitation);
 
@@ -333,8 +340,8 @@ int main()
         ImGui::NewFrame();
 
         ImGui::DockSpaceOverViewport(ImGui::GetMainViewport()->ID);
-        
-         ImGui::Begin("Scene Viewport", nullptr, ImGuiWindowFlags_NoScrollbar);
+
+        ImGui::Begin("Scene Viewport", nullptr, ImGuiWindowFlags_NoScrollbar);
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
         if (viewportSize.x > 0 && viewportSize.y > 0) {
             // Update FBO if size changed
@@ -429,10 +436,10 @@ int main()
         ImGui::DragFloat("Phase Value", &phaseG, 0.01f, 0.0f, 0.999f);
         ImGui::DragFloat("Extinction", &extinctionCoef, 0.01f, 0.0f, 1.0f, "%.4f");
         ImGui::DragFloat("Scattering", &scatteringCoef, 0.01f, 0.0f, 1.0f, "%.4f");
-		ImGui::DragFloat("Ambient Intensity", &ambientIntensity, 0.01f, 0.1f, 5.0f);
+        ImGui::DragFloat("Ambient Intensity", &ambientIntensity, 0.01f, 0.1f, 5.0f);
         ImGui::DragFloat("Silver Intensity", &silver_intensity, 0.01f, 0.0f, 5.0f);
         ImGui::DragFloat("Silver Spread", &silver_spread, 0.01f, 0.1f, 1.0f);
-		ImGui::DragFloat("Precipitation", &precipitation, 0.01f, 0.01f, 1.0f);
+        ImGui::DragFloat("Precipitation", &precipitation, 0.01f, 0.01f, 1.0f);
         ImGui::DragInt("Light Steps", &lightMaxSteps, 1, 0, 16);
 
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
@@ -443,25 +450,32 @@ int main()
         auto skyboxNames = skyboxManager.getSkyboxNames();
         int skyboxIndex = skyboxManager.getCurrentIndex();
 
-        if (ImGui::Combo("##SkyboxSelector", &skyboxIndex, skyboxNames.data(), skyboxNames.size())) {
-            skyboxManager.setCurrentSkybox(skyboxIndex);
+        ImGui::SeparatorText("Background Mode");
+        ImGui::RadioButton("Skybox", (int*)&useSkybox, 1); ImGui::SameLine();
+        ImGui::RadioButton("Gradient", (int*)&useSkybox, 0);
 
-            // Deleta textura antiga
-            /*if (cubemapTexture != 0) {
-                glDeleteTextures(1, &cubemapTexture);
-            }*/
-
-            // Carrega nova skybox
-            cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
-            currentSkyboxName = skyboxManager.getCurrentSkyboxName();
-        }
-
-        if (ImGui::Button("Rescan Skyboxes", ImVec2(-1, 0))) {
-            skyboxManager.reloadAll();
-            if (skyboxManager.getSkyboxCount() > 0) {
+        if (useSkybox)
+        {
+            ImGui::Spacing();
+            if (ImGui::Combo("##SkyboxSelector", &skyboxIndex, skyboxNames.data(), skyboxNames.size())) {
+                skyboxManager.setCurrentSkybox(skyboxIndex);
                 cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
                 currentSkyboxName = skyboxManager.getCurrentSkyboxName();
             }
+
+            if (ImGui::Button("Rescan Skyboxes", ImVec2(-1, 0))) {
+                skyboxManager.reloadAll();
+                if (skyboxManager.getSkyboxCount() > 0) {
+                    cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
+                    currentSkyboxName = skyboxManager.getCurrentSkyboxName();
+                }
+            }
+        }
+        else
+        {
+            ImGui::Spacing();
+            ImGui::ColorEdit3("Top Color", glm::value_ptr(gradientColorTop));
+            ImGui::ColorEdit3("Bottom Color", glm::value_ptr(gradientColorBottom));
         }
 
         ImGui::End();
@@ -480,30 +494,35 @@ int main()
             if (ImGuiFileDialog::Instance()->IsOk())
             {
                 std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
-                    currentTerrainPath = filePath;
+                currentTerrainPath = filePath;
                 terrainMesh = Mesh::Make(filePath);
 
-                std::string texPath = filePath.substr(0, filePath.find_last_of('.')) + ".jpg";
-                if (terrainTexture != 0)
-                    glDeleteTextures(1, &terrainTexture);
+                // Fallback: tenta carregar textura com mesmo nome do OBJ (.jpg ou .png)
+                // Só é aplicada em submeshes que o MTL não forneceu textura
+                if (terrainTexture != 0) { glDeleteTextures(1, &terrainTexture); terrainTexture = 0; }
 
-                int w, h, ch;
-                unsigned char* data = stbi_load(texPath.c_str(), &w, &h, &ch, 0);
-                if (data) {
-                    glGenTextures(1, &terrainTexture);
-                    glBindTexture(GL_TEXTURE_2D, terrainTexture);
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-                    glGenerateMipmap(GL_TEXTURE_2D);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                    stbi_image_free(data);
-                    std::cout << "[Terrain] Texture loaded: " << texPath << "\n";
+                std::string base = filePath.substr(0, filePath.find_last_of('.'));
+                for (const std::string& ext : { std::string(".jpg"), std::string(".png") }) {
+                    std::string texPath = base + ext;
+                    int w, h, ch;
+                    unsigned char* data = stbi_load(texPath.c_str(), &w, &h, &ch, 0);
+                    if (data) {
+                        GLenum fmt = (ch == 4) ? GL_RGBA : GL_RGB;
+                        glGenTextures(1, &terrainTexture);
+                        glBindTexture(GL_TEXTURE_2D, terrainTexture);
+                        glTexImage2D(GL_TEXTURE_2D, 0, fmt, w, h, 0, fmt, GL_UNSIGNED_BYTE, data);
+                        glGenerateMipmap(GL_TEXTURE_2D);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                        stbi_image_free(data);
+                        std::cout << "[Terrain] Fallback texture loaded: " << texPath << "\n";
+                        break;
+                    }
                 }
-                else {
-                    std::cout << "[Terrain] Texture not found: " << texPath << "\n";
-                }
+                if (terrainTexture != 0)
+                    terrainMesh->SetFallbackTexture(terrainTexture);
             }
             ImGuiFileDialog::Instance()->Close();
 
@@ -513,12 +532,22 @@ int main()
         {
             std::cout << "[Terrain] Mesh loaded successfully\n";
             ImGui::ColorEdit3("Terrain Color", glm::value_ptr(terrainColor));
+            ImGui::SeparatorText("Transform");
+            ImGui::DragFloat3("Position", glm::value_ptr(terrainPosition), 0.1f);
+            ImGui::DragFloat3("Scale", glm::value_ptr(terrainScale), 0.01f, 0.001f, 1000.0f);
+            if (ImGui::Button("Reset Transform"))
+            {
+                terrainPosition = glm::vec3(0.0f);
+                terrainScale = glm::vec3(1.0f);
+            }
+            ImGui::SeparatorText("Camera");
+            ImGui::DragFloat("Far Plane", &cameraFar, 10.0f, 10.0f, 1000000.0f, "%.0f");
             if (ImGui::Button("Unload"))
-                    {
-                        terrainMesh = nullptr;
-                        currentTerrainPath.clear();
-                        if (terrainTexture != 0) { glDeleteTextures(1, &terrainTexture); terrainTexture = 0; }
-                    }
+            {
+                terrainMesh = nullptr;
+                currentTerrainPath.clear();
+                if (terrainTexture != 0) { glDeleteTextures(1, &terrainTexture); terrainTexture = 0; }
+            }
         }
         else
         {
@@ -555,10 +584,10 @@ int main()
                 shapeOctaves, detailOctaves, perlinScale,
                 invertWorleyShape, invertWorleyDetail,
                 // Weather
-				coverageScale, heightScale, altitudeScale, presetCameraPos, presetCameraOri, currentSkyboxName,
-				// terrain + visual
-				presetTerrainPath, ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
-				enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
+                coverageScale, heightScale, altitudeScale, presetCameraPos, presetCameraOri, currentSkyboxName,
+                // terrain + visual
+                presetTerrainPath, ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
+                enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
             );
 
             // Aplicar skybox do preset
@@ -570,37 +599,39 @@ int main()
             }
 
             // Apply camera from preset
-            if (presetCameraPos != glm::vec3(0.0f) || presetCameraOri != glm::vec3(0.0f,0.0f,-1.0f)) {
+            if (presetCameraPos != glm::vec3(0.0f) || presetCameraOri != glm::vec3(0.0f, 0.0f, -1.0f)) {
                 camera.Position = presetCameraPos;
                 camera.Orientation = presetCameraOri;
             }
 
             // If preset provided a terrainPath, load it
             if (!presetTerrainPath.empty()) {
-                // try to load mesh
                 if (terrainMesh) { terrainMesh = nullptr; }
                 currentTerrainPath = presetTerrainPath;
                 terrainMesh = Mesh::Make(presetTerrainPath);
 
-                // try to load texture alongside mesh (same basename .jpg)
-                std::string texPath = presetTerrainPath.substr(0, presetTerrainPath.find_last_of('.')) + ".jpg";
                 if (terrainTexture != 0) { glDeleteTextures(1, &terrainTexture); terrainTexture = 0; }
-                int w, h, ch;
-                unsigned char* data = stbi_load(texPath.c_str(), &w, &h, &ch, 0);
-                if (data) {
-                    glGenTextures(1, &terrainTexture);
-                    glBindTexture(GL_TEXTURE_2D, terrainTexture);
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-                    glGenerateMipmap(GL_TEXTURE_2D);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                    stbi_image_free(data);
-                    std::cout << "[Terrain] Texture loaded from preset: " << texPath << "\n";
-                } else {
-                    std::cout << "[Terrain] Texture not found for preset: " << texPath << "\n";
+                std::string base = presetTerrainPath.substr(0, presetTerrainPath.find_last_of('.'));
+                for (const std::string& ext : { std::string(".jpg"), std::string(".png") }) {
+                    int w, h, ch;
+                    unsigned char* data = stbi_load((base + ext).c_str(), &w, &h, &ch, 0);
+                    if (data) {
+                        GLenum fmt = (ch == 4) ? GL_RGBA : GL_RGB;
+                        glGenTextures(1, &terrainTexture);
+                        glBindTexture(GL_TEXTURE_2D, terrainTexture);
+                        glTexImage2D(GL_TEXTURE_2D, 0, fmt, w, h, 0, fmt, GL_UNSIGNED_BYTE, data);
+                        glGenerateMipmap(GL_TEXTURE_2D);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                        stbi_image_free(data);
+                        std::cout << "[Terrain] Fallback texture loaded from preset: " << base + ext << "\n";
+                        break;
+                    }
                 }
+                if (terrainTexture != 0)
+                    terrainMesh->SetFallbackTexture(terrainTexture);
             }
 
             needsUpdate = true;
@@ -627,16 +658,16 @@ int main()
                     cloudMaxSteps,
                     // Iluminação
                     lightDirection, lightColor, phaseG,
-					scatteringCoef, extinctionCoef,
+                    scatteringCoef, extinctionCoef,
                     ambientIntensity, precipitation, lightMaxSteps,
                     // Noise
                     shapeOctaves, detailOctaves, perlinScale,
                     invertWorleyShape, invertWorleyDetail,
                     // Weather
-					coverageScale, heightScale, altitudeScale, camera.Position, camera.Orientation, currentSkyboxName,
-					// terrain + visual
-					currentTerrainPath, ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
-					enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
+                    coverageScale, heightScale, altitudeScale, camera.Position, camera.Orientation, currentSkyboxName,
+                    // terrain + visual
+                    currentTerrainPath, ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
+                    enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
                 );
 
                 // Limpa o input
