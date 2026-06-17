@@ -1,0 +1,69 @@
+# Sunny Preset
+
+# Wind
+windDirection=-0.24,0,-0.03
+windSpeed=0.01
+
+# Atmosphere
+planetRadius=50000
+atmosphereStart=1000
+atmosphereHeight=1500
+atmosphereMaxDepth=716
+
+# Density
+weatherScale=5000
+maxCloudHeight=25
+maxCloudAltitude=80
+shapeScale=1000
+detailScale=200
+detailNoiseWeight=0.04
+shapeNoiseWeights=1,0.625,0.25,0.125
+
+# Ray Marching
+cloudMaxSteps=45
+
+# Lighting
+lightDirection=-1,0.5,-0.2
+lightColor=1,0.984314,0.870588
+phaseG=0.939
+scatteringCoefficient=1
+extinctionCoefficient=0.9
+ambientIntensity=0.88
+precipitation=1
+lightMaxSteps=16
+
+# Noise Generation
+shapeOctaves=2,4,8
+detailOctaves=8,16,32
+perlinScale=1
+invertWorleyShape=1
+invertWorleyDetail=1
+
+# Weather Map
+coverageScale=1
+heightScale=1.5
+altitudeScale=1
+useSkybox=0
+gradientColorTop=0.294118,0.721569,0.980392
+gradientColorBottom=0.984314,0.984314,0.984314
+# Terrain
+terrainPath=C:\Users\vagnermessias\source\repos\vagnermcj\Projeto-Final-Volumetric-Clouds\VolumetricClouds\VolumetricClouds\terrains\JungleMountain\JungleMountain.obj
+terrainPosition=0,0,0
+terrainScale=1000,1000,1000
+# Camera
+cameraPosition=20.4089,5.85553,362.983
+cameraOrientation=-0.822023,0.304283,-0.481152
+# Ambient/Visual
+ambientColor=0.768627,0.886275,0.960784
+cloudTopType=0.6
+cloudBottomType=0.5
+silver_intensity=5
+silver_spread=0.5
+enableDetailErosion=1
+enableLightMarching=1
+enableBeersLaw=1
+enablePowderEffect=1
+enablePhaseFunction=1
+enableSilverSheen=1
+# Skybox
+skyboxName=default

@@ -57,6 +57,14 @@ CloudPreset PresetManager::getDefaultPreset() {
         def.skyboxName = "default";
         def.cameraPosition = glm::vec3(0.0f, 0.0f, 5.0f);
         def.cameraOrientation = glm::vec3(0.0f, 0.0f, -1.0f);
+        def.useSkybox = true;
+        def.gradientColorTop = glm::vec3(0.1f, 0.3f, 0.6f);
+        def.gradientColorBottom = glm::vec3(0.6f, 0.75f, 0.9f);
+
+        def.terrainPosition = glm::vec3(0.0f);
+        def.terrainScale = glm::vec3(1.0f);
+
+        def.ambientIntensity = 1.3f;
 
         return def;
     }
@@ -138,6 +146,11 @@ void PresetManager::parseLine(const std::string& line, CloudPreset& preset) {
         else if (key == "coverageScale") preset.coverageScale = std::stof(value);
         else if (key == "heightScale") preset.heightScale = std::stof(value);
         else if (key == "altitudeScale") preset.altitudeScale = std::stof(value);
+    else if (key == "useSkybox") preset.useSkybox = (value == "1" || value == "true");
+    else if (key == "gradientColorTop") preset.gradientColorTop = parseVec3(value);
+    else if (key == "gradientColorBottom") preset.gradientColorBottom = parseVec3(value);
+    else if (key == "terrainPosition") preset.terrainPosition = parseVec3(value);
+    else if (key == "terrainScale") preset.terrainScale = parseVec3(value);
     else if (key == "skyboxName") preset.skyboxName = value;
         else if (key == "terrainPath") preset.terrainPath = value;
         else if (key == "ambientColor") preset.ambientColor = parseVec3(value);
@@ -223,8 +236,14 @@ void PresetManager::savePresetToFile(const CloudPreset& preset, const std::strin
     file << "heightScale=" << preset.heightScale << "\n";
     file << "altitudeScale=" << preset.altitudeScale << "\n";
 
+    file << "useSkybox=" << (preset.useSkybox ? "1" : "0") << "\n";
+    file << "gradientColorTop=" << preset.gradientColorTop.x << "," << preset.gradientColorTop.y << "," << preset.gradientColorTop.z << "\n";
+    file << "gradientColorBottom=" << preset.gradientColorBottom.x << "," << preset.gradientColorBottom.y << "," << preset.gradientColorBottom.z << "\n";
+
     file << "# Terrain\n";
     file << "terrainPath=" << preset.terrainPath << "\n";
+    file << "terrainPosition=" << preset.terrainPosition.x << "," << preset.terrainPosition.y << "," << preset.terrainPosition.z << "\n";
+    file << "terrainScale=" << preset.terrainScale.x << "," << preset.terrainScale.y << "," << preset.terrainScale.z << "\n";
 
     file << "# Camera\n";
     file << "cameraPosition=" << preset.cameraPosition.x << "," << preset.cameraPosition.y << "," << preset.cameraPosition.z << "\n";
@@ -286,7 +305,8 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
         float ambInt, float precip, int lightSteps,
         const glm::ivec3& shpOct, const glm::ivec3& dtlOct, float pScale,
         bool invWorleyShp, bool invWorleyDtl,
-        float covScale, float hScale, float altScale, const glm::vec3& cameraPos, const glm::vec3& cameraOri, const std::string& skyboxName, const std::string& terrainPath,
+        float covScale, float hScale, float altScale, const glm::vec3& cameraPos, const glm::vec3& cameraOri, const std::string& skyboxName, const std::string& terrainPath, const glm::vec3& terrainPos, const glm::vec3& terrainScale,
+        bool useSkybox, const glm::vec3& gradientTop, const glm::vec3& gradientBottom, float ambIntensity,
         const glm::vec3& ambientColor, float cloudTopType, float cloudBottomType, float silver_intensity, float silver_spread,
         bool enableDetailErosion, bool enableLightMarching, bool enableBeersLaw, bool enablePowderEffect, bool enablePhaseFunction, bool enableSilverSheen)
 {
@@ -314,6 +334,10 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
         preset.precipitation = precip;
         preset.lightMaxSteps = lightSteps;
         preset.ambientColor = ambientColor;
+        preset.ambientIntensity = ambIntensity;
+        preset.useSkybox = useSkybox;
+        preset.gradientColorTop = gradientTop;
+        preset.gradientColorBottom = gradientBottom;
         preset.cloudTopType = cloudTopType;
         preset.cloudBottomType = cloudBottomType;
         preset.silver_intensity = silver_intensity;
@@ -330,6 +354,8 @@ void PresetManager::saveCurrentState(const std::string& name,const glm::vec3& wi
         preset.cameraOrientation = cameraOri;
         preset.skyboxName = skyboxName;
         preset.terrainPath = terrainPath;
+        preset.terrainPosition = terrainPos;
+        preset.terrainScale = terrainScale;
         // Performance toggles set from caller
         preset.enableDetailErosion = enableDetailErosion;
         preset.enableLightMarching = enableLightMarching;
@@ -357,7 +383,7 @@ void PresetManager::applyPreset(int index, glm::vec3& windDir, float& windSpd,
     glm::ivec3& shpOct, glm::ivec3& dtlOct, float& pScale,
     bool& invWorleyShp, bool& invWorleyDtl,
     float& covScale, float& hScale, float& altScale, glm::vec3& cameraPos, glm::vec3& cameraOri,
-    std::string& skyboxName, std::string& terrainPath,
+    std::string& skyboxName, std::string& terrainPath, glm::vec3& terrainPos, glm::vec3& terrainScale, bool& useSkybox, glm::vec3& gradientTop, glm::vec3& gradientBottom, float& ambIntensity,
     glm::vec3& ambientColor, float& cloudTopType, float& cloudBottomType,
     float& silver_intensity, float& silver_spread,
     bool& enableDetailErosion, bool& enableLightMarching, bool& enableBeersLaw,
@@ -400,7 +426,13 @@ void PresetManager::applyPreset(int index, glm::vec3& windDir, float& windSpd,
     cameraOri = p.cameraOrientation;
     skyboxName = p.skyboxName;
     terrainPath = p.terrainPath;
+    terrainPos = p.terrainPosition;
+    terrainScale = p.terrainScale;
     ambientColor = p.ambientColor;
+    ambInt = p.ambientIntensity;
+    useSkybox = p.useSkybox;
+    gradientTop = p.gradientColorTop;
+    gradientBottom = p.gradientColorBottom;
     cloudTopType = p.cloudTopType;
     cloudBottomType = p.cloudBottomType;
     silver_intensity = p.silver_intensity;

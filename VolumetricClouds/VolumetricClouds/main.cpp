@@ -586,7 +586,8 @@ int main()
                 // Weather
                 coverageScale, heightScale, altitudeScale, presetCameraPos, presetCameraOri, currentSkyboxName,
                 // terrain + visual
-                presetTerrainPath, ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
+                presetTerrainPath, terrainPosition, terrainScale, useSkybox, gradientColorTop, gradientColorBottom, ambientIntensity,
+                ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
                 enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
             );
 
@@ -597,6 +598,8 @@ int main()
                 }*/
                 cubemapTexture = skyboxManager.getCurrentSkyboxTexture();
             }
+
+            // visual settings are written directly into `useSkybox`, `gradientColorTop`, `gradientColorBottom`, `ambientIntensity` by applyPreset
 
             // Apply camera from preset
             if (presetCameraPos != glm::vec3(0.0f) || presetCameraOri != glm::vec3(0.0f, 0.0f, -1.0f)) {
@@ -663,11 +666,12 @@ int main()
                     // Noise
                     shapeOctaves, detailOctaves, perlinScale,
                     invertWorleyShape, invertWorleyDetail,
-                    // Weather
-                    coverageScale, heightScale, altitudeScale, camera.Position, camera.Orientation, currentSkyboxName,
-                    // terrain + visual
-                    currentTerrainPath, ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
-                    enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
+                // Weather
+                coverageScale, heightScale, altitudeScale, camera.Position, camera.Orientation, currentSkyboxName,
+                // terrain + visual
+                currentTerrainPath, terrainPosition, terrainScale, useSkybox, gradientColorTop, gradientColorBottom, ambientIntensity,
+                ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
+                enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
                 );
 
                 // Limpa o input

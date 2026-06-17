@@ -215,7 +215,13 @@ float cloudDensity(vec3 p, bool light = false)
     dimensionalProfile = coverage * verticalProfile;
 
     if(dimensionalProfile < 0.01) return 0.0;
-    if(light) return dimensionalProfile;
+    if(light)
+    {
+        float density = dimensionalProfile;
+
+        float shape = getCloudShape(p);
+        density *= shape;
+    }
 
     float density = dimensionalProfile;
 
@@ -242,21 +248,23 @@ float cloudDensity(vec3 p, bool light = false)
 
 float lightMarching(vec3 pos)
 {
-    float totalDensity = 0.0;
-    float stepSize = (outerCloudRadius - innerCloudRadius) / float(lightSteps) * 2.0;
+    float transmittance = 1.0;
+    float stepSize = (outerCloudRadius - innerCloudRadius) / float(lightSteps);
 
     for (int i = 0; i < lightSteps; i++)
     {
-        vec3  p    = pos + normalize(lightDirection) * stepSize * float(i + 1);
+        vec3 p = pos + normalize(lightDirection) * stepSize * float(i + 1);
         float dist = length(p - planetCenter());
 
         if (dist > outerCloudRadius || dist < innerCloudRadius) break;
 
-        totalDensity += max(0.0, cloudDensity(p, true)) * stepSize;
-        stepSize     *= 1.5;
+        float density = max(0.0, cloudDensity(p, true));
+        transmittance *= exp(-density * extinctionCoef * stepSize);
+
+        if (transmittance < 0.01) break;
     }
 
-    return totalDensity;    
+    return transmittance;
 }
 
 
@@ -297,7 +305,7 @@ vec3 rayMarch(vec3 ro, vec3 rd)
 
         if (cloudDens > 0.01)
         {
-            float densityToLight = enableLightMarching ? lightMarching(p) : 0.0;
+            float densityToLight = enableLightMarching ? lightMarching(p) : 1.0;
 
             float beersLaw = 1.0;
             if (enableBeersLaw) {
@@ -327,11 +335,10 @@ vec3 rayMarch(vec3 ro, vec3 rd)
         t += stepSize;
     }
 
-    return scatteredLight + skyColor * transmittance;
+    float sunDot = dot(rd, normalize(lightDirection));
+    float sun = smoothstep(0.9995, 1.0, sunDot);
+    return scatteredLight + skyColor * transmittance + lightColor * sun * transmittance;
 }
-// ═════════════════════════════════════════════════════════════════════════════
-//  Main
-// ═════════════════════════════════════════════════════════════════════════════
 
 void main()
 {

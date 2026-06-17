@@ -67,8 +67,13 @@ struct CloudPreset {
 
     // Skybox
     std::string skyboxName;
+    bool useSkybox = true;
+    glm::vec3 gradientColorTop = glm::vec3(0.1f, 0.3f, 0.6f);
+    glm::vec3 gradientColorBottom = glm::vec3(0.6f, 0.75f, 0.9f);
     // Terrain (path or name)
     std::string terrainPath;
+    glm::vec3 terrainPosition = glm::vec3(0.0f);
+    glm::vec3 terrainScale = glm::vec3(1.0f);
     // Performance toggles
     bool enableDetailErosion;
     bool enableLightMarching;
@@ -101,7 +106,8 @@ public:
         float ambInt, float precip, int lightSteps,
         const glm::ivec3& shpOct, const glm::ivec3& dtlOct, float pScale,
         bool invWorleyShp, bool invWorleyDtl,
-        float covScale, float hScale, float altScale, const glm::vec3& cameraPos, const glm::vec3& cameraOri, const std::string& skyboxName, const std::string& terrainPath,
+        float covScale, float hScale, float altScale, const glm::vec3& cameraPos, const glm::vec3& cameraOri, const std::string& skyboxName, const std::string& terrainPath, const glm::vec3& terrainPos, const glm::vec3& terrainScale,
+        bool useSkybox, const glm::vec3& gradientTop, const glm::vec3& gradientBottom, float ambIntensity,
         const glm::vec3& ambientColor, float cloudTopType, float cloudBottomType, float silver_intensity, float silver_spread,
         bool enableDetailErosion, bool enableLightMarching, bool enableBeersLaw, bool enablePowderEffect, bool enablePhaseFunction, bool enableSilverSheen);
     void applyPreset(int index, glm::vec3& windDir, float& windSpd,
@@ -114,7 +120,7 @@ public:
         glm::ivec3& shpOct, glm::ivec3& dtlOct, float& pScale,
         bool& invWorleyShp, bool& invWorleyDtl,
         float& covScale, float& hScale, float& altScale, glm::vec3& cameraPos, glm::vec3& cameraOri,
-        std::string& skyboxName, std::string& terrainPath,
+        std::string& skyboxName, std::string& terrainPath, glm::vec3& terrainPos, glm::vec3& terrainScale, bool& useSkybox, glm::vec3& gradientTop, glm::vec3& gradientBottom, float& ambIntensity,
         glm::vec3& ambientColor, float& cloudTopType, float& cloudBottomType,
         float& silver_intensity, float& silver_spread,
         bool& enableDetailErosion, bool& enableLightMarching, bool& enableBeersLaw,
