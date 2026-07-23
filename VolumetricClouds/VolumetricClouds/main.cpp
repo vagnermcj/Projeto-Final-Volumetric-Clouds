@@ -395,7 +395,7 @@ int main()
                 needsUpdate = true;
             break;
         case 2: //Weather
-            if (ImGui::DragFloat("Coverage Scale", &coverageScale, 0.1f, 1.0f, 16.0f)) needsUpdate = true;
+            if (ImGui::DragFloat("Coverage Scale", &coverageScale, 0.1f, 1.0f)) needsUpdate = true;
             if (ImGui::DragFloat("Height Scale", &heightScale, 0.1f, 1.0f, 16.0f)) needsUpdate = true;
             if (ImGui::DragFloat("Altitude Scale", &altitudeScale, 0.1f, 0.0f, 16.0f)) needsUpdate = true;
             if (ImGui::Button("Randomize Weather Map")) {
@@ -435,11 +435,9 @@ int main()
         ImGui::ColorEdit3("Ambient Color", glm::value_ptr(ambientColor));
         ImGui::DragFloat("Phase Value", &phaseG, 0.01f, 0.0f, 0.999f);
         ImGui::DragFloat("Extinction", &extinctionCoef, 0.01f, 0.0f, 1.0f, "%.4f");
-        ImGui::DragFloat("Scattering", &scatteringCoef, 0.01f, 0.0f, 1.0f, "%.4f");
         ImGui::DragFloat("Ambient Intensity", &ambientIntensity, 0.01f, 0.1f, 5.0f);
         ImGui::DragFloat("Silver Intensity", &silver_intensity, 0.01f, 0.0f, 5.0f);
         ImGui::DragFloat("Silver Spread", &silver_spread, 0.01f, 0.1f, 1.0f);
-        ImGui::DragFloat("Precipitation", &precipitation, 0.01f, 0.01f, 1.0f);
         ImGui::DragInt("Light Steps", &lightMaxSteps, 1, 0, 16);
 
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
@@ -530,7 +528,6 @@ int main()
 
         if (terrainMesh)
         {
-            std::cout << "[Terrain] Mesh loaded successfully\n";
             ImGui::ColorEdit3("Terrain Color", glm::value_ptr(terrainColor));
             ImGui::SeparatorText("Transform");
             ImGui::DragFloat3("Position", glm::value_ptr(terrainPosition), 0.1f);
@@ -607,8 +604,8 @@ int main()
                 camera.Orientation = presetCameraOri;
             }
 
-            // If preset provided a terrainPath, load it
-            if (!presetTerrainPath.empty()) {
+            // If preset provided a terrainPath, load it (só se for diferente do já carregado)
+            if (!presetTerrainPath.empty() && presetTerrainPath != currentTerrainPath) {
                 if (terrainMesh) { terrainMesh = nullptr; }
                 currentTerrainPath = presetTerrainPath;
                 terrainMesh = Mesh::Make(presetTerrainPath);
@@ -666,12 +663,12 @@ int main()
                     // Noise
                     shapeOctaves, detailOctaves, perlinScale,
                     invertWorleyShape, invertWorleyDetail,
-                // Weather
-                coverageScale, heightScale, altitudeScale, camera.Position, camera.Orientation, currentSkyboxName,
-                // terrain + visual
-                currentTerrainPath, terrainPosition, terrainScale, useSkybox, gradientColorTop, gradientColorBottom, ambientIntensity,
-                ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
-                enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
+                    // Weather
+                    coverageScale, heightScale, altitudeScale, camera.Position, camera.Orientation, currentSkyboxName,
+                    // terrain + visual
+                    currentTerrainPath, terrainPosition, terrainScale, useSkybox, gradientColorTop, gradientColorBottom, ambientIntensity,
+                    ambientColor, cloudTopType, cloudBottomType, silver_intensity, silver_spread,
+                    enableDetailErosion, enableLightMarching, enableBeersLaw, enablePowderEffect, enablePhaseFunction, enableSilverSheen
                 );
 
                 // Limpa o input

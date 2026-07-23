@@ -299,7 +299,6 @@ vec3 rayMarch(vec3 ro, vec3 rd)
         if (t >= tEnd || transmittance < 0.1) break;
 
         vec3  p         = ro + rd * t;
-        if (p.y < 0.0) break;
 
         float cloudDens = cloudDensity(p);
 
